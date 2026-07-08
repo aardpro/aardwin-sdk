@@ -1,0 +1,74 @@
+{
+  "name": "@aardwin/auth-browser",
+  "version": "0.1.0",
+  "description": "aardwin 嵌入式 OAuth 登录组件 —— <aardwin-auth> Web Component",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": [
+    "./dist/index.mjs",
+    "./src/index.ts"
+  ],
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "browser": "./dist/index.mjs",
+      "default": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json",
+    "./react.d.ts": {
+      "types": "./dist/react.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "SDK.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "build": "bun run build:dist && bun run build:types",
+    "build:dist": "bun build src/index.ts --outfile dist/index.mjs --target browser --minify && node -e \"require('fs').copyFileSync('src/react.d.ts','dist/react.d.ts')\"",
+    "build:types": "tsc --emitDeclarationOnly --declaration --outDir dist",
+    "build:iife": "bun build src/index.ts --outfile dist/aardwin-auth.iife.js --format iife --target browser --minify && node -e \"require('fs').copyFileSync('dist/aardwin-auth.iife.js','../../packages/frontend/public/aardwin-auth.iife.js')\"",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "prepublishOnly": "bun run clean && bun run build && bun run build:iife && bun test",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo"
+  },
+  "keywords": [
+    "oauth",
+    "oauth2",
+    "sso",
+    "login",
+    "authentication",
+    "web-component",
+    "custom-element",
+    "wechat",
+    "scan-login",
+    "aardwin",
+    "aardpro"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aardpro/aardwin-sdk.git",
+    "directory": "sdk"
+  },
+  "homepage": "https://github.com/aardpro/aardwin-sdk/tree/main/sdk#readme",
+  "bugs": {
+    "url": "https://github.com/aardpro/aardwin-sdk/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "happy-dom": "^20.10.6"
+  }
+}
