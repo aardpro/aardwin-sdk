@@ -20,5 +20,5 @@ import { AardwinAuthElement } from "./component";
 export const __AARDWIN_AUTH_BUNDLE_ANCHOR: string = typeof AardwinAuthElement;
 
 export { AardwinAuthElement } from "./component";
-export { AARDWIN_API_ORIGIN, PROVIDER_LABELS, STATE_COOKIE } from "./config";
+export { API_ORIGIN, PROVIDER_LABELS, STATE_COOKIE } from "./config";
 export type { AuthUser, ProviderInfo } from "./types";

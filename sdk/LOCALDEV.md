@@ -27,11 +27,11 @@ npm run dev
 ```html
 <aardwin-auth
   site-id="test-site-id"
-  aardwin-api-origin="http://localhost:4000"
+  api-origin="http://localhost:4000"
 ></aardwin-auth>
 ```
 
-`aardwin-api-origin` 指向本地 api，使 SDK 从 localhost 拉取 provider 列表与授权入口。
+`api-origin` 指向本地 api，使 SDK 从 localhost 拉取 provider 列表与授权入口。
 
 ## 5. 授权 → 回调 → 换码
 

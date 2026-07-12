@@ -27,7 +27,7 @@ const user = await exchangeCode({ code, siteId, clientSecret: process.env.AARDWI
 
 ## 配置
 
-后端 origin 硬编码在 `src/config.ts` 的 `AARDWIN_API_ORIGIN`（指向已部署的 `@aardwin/bff`）。发布前改为真实地址。元素只接受 `site-id`（必填）和 `i18n`（预留，v1 未实现）。
+后端 origin 硬编码在 `src/config.ts` 的 `API_ORIGIN`（指向已部署的 `@aardwin/bff`）。发布前改为真实地址。元素只接受 `site-id`（必填）和 `i18n`（预留，v1 未实现）。
 
 ## 构建
 
@@ -44,7 +44,7 @@ src/
 ├── index.ts          # 浏览器入口（导出 + 注册元素）
 ├── component.ts      # <aardwin-auth> Web Component 实现
 ├── exchange-code.ts  # server-only：exchangeCode() 换码
-├── config.ts         # AARDWIN_API_ORIGIN / STATE_COOKIE / PROVIDER_LABELS
+├── config.ts         # API_ORIGIN / STATE_COOKIE / PROVIDER_LABELS
 └── types.ts          # AuthUser / ProviderInfo
 ```
 
@@ -63,7 +63,7 @@ src/
 发布步骤：
 ```bash
 cd packages/sdk
-# 1. 改 src/config.ts 的 AARDWIN_API_ORIGIN 为真实线上 api origin（发布前必改！）
+# 1. 改 src/config.ts 的 API_ORIGIN 为真实线上 api origin（发布前必改！）
 # 2. 如需升版本号
 npm version patch   # 或 minor / major
 # 3. 一键构建 + 发布（prepublishOnly 会自动 clean + build dist + .d.ts）

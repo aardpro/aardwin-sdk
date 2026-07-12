@@ -1,85 +1,85 @@
 import { describe, it, expect } from 'bun:test';
-import { resolveAardwinApiOrigin } from '../src/aardwin-api-origin';
+import { resolveApiOrigin } from '../src/api-origin';
 import { resolveSdkTexts } from '../src/i18n';
-import { AARDWIN_API_ORIGIN, PROVIDER_LABELS } from '../src/config';
+import { API_ORIGIN, PROVIDER_LABELS } from '../src/config';
 
 /**
  * 组件 origin 解析逻辑的纯函数单元测试。
  *
- * `resolveAardwinApiOrigin(attr)` 是 `<aardwin-auth>` 中 render() 与 startAuth() 共用的
+ * `resolveApiOrigin(attr)` 是 `<aardwin-auth>` 中 render() 与 startAuth() 共用的
  * 入口解析逻辑：它决定 fetch `/api/providers` 与 `/authorize` 兜底用哪个 origin。
  * 把它从组件里抽出来作为纯函数，是为了让单测无需 DOM 环境（bun test 默认无 document）
  * 即可覆盖以下三个分支：
  *
- *   1. 设 `aardwin-api-origin` 属性 → 返回 trim 后的属性值（覆盖 fetch origin）。
- *   2. 不设属性 / 空串 / 纯空白 → 回退到 AARDWIN_API_ORIGIN 常量。
+ *   1. 设 `api-origin` 属性 → 返回 trim 后的属性值（覆盖 fetch origin）。
+ *   2. 不设属性 / 空串 / 纯空白 → 回退到 API_ORIGIN 常量。
  *   3. startAuth 的 `/authorize` 兜底：provider authorizeEndpoint 为空时，
- *      `endpoint || resolveAardwinApiOrigin(attr)` 即用属性 origin 作 base，
+ *      `endpoint || resolveApiOrigin(attr)` 即用属性 origin 作 base，
  *      这里通过模拟同样表达式直接验证解析结果。
  *
  * DOM 集成验证（shadowRoot 渲染、button click → window.location.href）由
  * dogfood 页手动验证（见 plan 验收标准 5）；CI 侧用纯函数断言锁定语义。
  */
 
-describe('resolveAardwinApiOrigin — attribute override', () => {
-  it('returns the trimmed attribute value when aardwin-api-origin is set', () => {
+describe('resolveApiOrigin — attribute override', () => {
+  it('returns the trimmed attribute value when api-origin is set', () => {
     // 对应 render(): `${apiOrigin}/api/providers?…` 命中 localhost。
-    expect(resolveAardwinApiOrigin('http://localhost:4000')).toBe(
+    expect(resolveApiOrigin('http://localhost:4000')).toBe(
       'http://localhost:4000',
     );
   });
 
   it('trims surrounding whitespace before returning', () => {
-    expect(resolveAardwinApiOrigin('  http://localhost:4000  ')).toBe(
+    expect(resolveApiOrigin('  http://localhost:4000  ')).toBe(
       'http://localhost:4000',
     );
   });
 });
 
-describe('resolveAardwinApiOrigin — fallback to AARDWIN_API_ORIGIN', () => {
-  it('falls back to AARDWIN_API_ORIGIN when attribute is null (absent)', () => {
+describe('resolveApiOrigin — fallback to API_ORIGIN', () => {
+  it('falls back to API_ORIGIN when attribute is null (absent)', () => {
     // 不设属性：document.createElement('aardwin-auth') 未 setAttribute。
-    expect(resolveAardwinApiOrigin(null)).toBe(AARDWIN_API_ORIGIN);
-    expect(AARDWIN_API_ORIGIN).toBe('https://oauth.aard.win');
+    expect(resolveApiOrigin(null)).toBe(API_ORIGIN);
+    expect(API_ORIGIN).toBe('https://api.aard.win');
   });
 
-  it('falls back to AARDWIN_API_ORIGIN when attribute is empty string', () => {
+  it('falls back to API_ORIGIN when attribute is empty string', () => {
     // AppTestPage 在 PROD 传空串兜底（import.meta.env.DEV ? localhost : ''）。
-    expect(resolveAardwinApiOrigin('')).toBe(AARDWIN_API_ORIGIN);
+    expect(resolveApiOrigin('')).toBe(API_ORIGIN);
   });
 
-  it('falls back to AARDWIN_API_ORIGIN when attribute is whitespace-only', () => {
-    expect(resolveAardwinApiOrigin('   ')).toBe(AARDWIN_API_ORIGIN);
-    expect(resolveAardwinApiOrigin('\t\n')).toBe(AARDWIN_API_ORIGIN);
+  it('falls back to API_ORIGIN when attribute is whitespace-only', () => {
+    expect(resolveApiOrigin('   ')).toBe(API_ORIGIN);
+    expect(resolveApiOrigin('\t\n')).toBe(API_ORIGIN);
   });
 });
 
 describe('startAuth /authorize fallback expression', () => {
   // 复制组件里的兜底表达式 `const base = endpoint || apiOrigin;` —— 这里 apiOrigin
-  // 已是 resolveAardwinApiOrigin(attr) 的结果。当 provider 的 authorizeEndpoint 为空时，
-  // base 落到 aardwin-api-origin 属性（dev：localhost），不到 AARDWIN_API_ORIGIN。
-  it('uses aardwin-api-origin as base when endpoint is empty', () => {
-    const apiOrigin = resolveAardwinApiOrigin('http://localhost:4000');
+  // 已是 resolveApiOrigin(attr) 的结果。当 provider 的 authorizeEndpoint 为空时，
+  // base 落到 api-origin 属性（dev：localhost），不到 API_ORIGIN。
+  it('uses api-origin as base when endpoint is empty', () => {
+    const apiOrigin = resolveApiOrigin('http://localhost:4000');
     const endpoint = ''; // provider.authorizeEndpoint 缺失
     const base = endpoint || apiOrigin;
     expect(base).toBe('http://localhost:4000');
   });
 
-  it('uses endpoint (provider authorizeEndpoint) when non-empty, ignoring aardwin-api-origin', () => {
+  it('uses endpoint (provider authorizeEndpoint) when non-empty, ignoring api-origin', () => {
     // api 返回的 authorizeEndpoint 优先级最高 —— 这是 Q1=是 的语义保证：
-    // aardwin-api-origin 不改动 providers 响应里的 authorizeEndpoint。
-    const apiOrigin = resolveAardwinApiOrigin('http://localhost:4000');
-    const endpoint = 'https://oauth.aard.win';
+    // api-origin 不改动 providers 响应里的 authorizeEndpoint。
+    const apiOrigin = resolveApiOrigin('http://localhost:4000');
+    const endpoint = 'https://auth.aard.win';
     const base = endpoint || apiOrigin;
-    expect(base).toBe('https://oauth.aard.win');
+    expect(base).toBe('https://auth.aard.win');
   });
 
-  it('falls back to AARDWIN_API_ORIGIN when both endpoint and attribute are empty', () => {
-    const apiOrigin = resolveAardwinApiOrigin(null);
+  it('falls back to API_ORIGIN when both endpoint and attribute are empty', () => {
+    const apiOrigin = resolveApiOrigin(null);
     const endpoint = '';
     const base = endpoint || apiOrigin;
-    expect(base).toBe(AARDWIN_API_ORIGIN);
-    expect(base).toBe('https://oauth.aard.win');
+    expect(base).toBe(API_ORIGIN);
+    expect(base).toBe('https://api.aard.win');
   });
 });
 
@@ -115,7 +115,7 @@ describe('startAuth email branch — state contract', () => {
 
   it('email 跳转 URL 带 ?state= 且路径为 /email-auth/:siteId', () => {
     const siteId = 'site_abc';
-    const endpoint = 'https://oauth.aard.win';
+    const endpoint = 'https://auth.aard.win';
     const provider = 'email';
     const state = sampleState();
     // 组件表达式：provider==='email' 分支
@@ -124,7 +124,7 @@ describe('startAuth email branch — state contract', () => {
         ? `${endpoint}/email-auth/${encodeURIComponent(siteId)}?state=${encodeURIComponent(state)}`
         : '';
     expect(href).toBe(
-      'https://oauth.aard.win/email-auth/site_abc?state=000102030405060708090a0b0c0d0e0f',
+      'https://auth.aard.win/email-auth/site_abc?state=000102030405060708090a0b0c0d0e0f',
     );
     // 关键契约：state 非空地出现在 query 里。
     const u = new URL(href);
@@ -135,7 +135,7 @@ describe('startAuth email branch — state contract', () => {
 
   it('email 分支与 OAuth 分支产出同形的 state query（都非空）', () => {
     const siteId = 'site_abc';
-    const endpoint = 'https://oauth.aard.win';
+    const endpoint = 'https://auth.aard.win';
     const apiOrigin = endpoint;
     const state = sampleState();
 
@@ -250,14 +250,14 @@ describe('email button endpoint — uses api authorizeEndpoint', () => {
   // email-endpoint attribute 已移除：email 与 OAuth 统一由 api 返回的 authorizeEndpoint。
   // 复制 component render() 内的表达式：const endpoint = p.authorizeEndpoint;
   it('email button uses the same authorizeEndpoint as OAuth buttons', () => {
-    const pAuthorizeEndpoint = 'https://oauth.aard.win';
+    const pAuthorizeEndpoint = 'https://auth.aard.win';
     const endpoint = pAuthorizeEndpoint;
-    expect(endpoint).toBe('https://oauth.aard.win');
+    expect(endpoint).toBe('https://auth.aard.win');
   });
 
   it('endpoint comes solely from api (no attribute override)', () => {
     // email-endpoint attribute 已移除，endpoint 唯一来源是 api 的 authorizeEndpoint
-    const pAuthorizeEndpoint = 'https://oauth.aard.win';
+    const pAuthorizeEndpoint = 'https://auth.aard.win';
     const emailEndpoint = pAuthorizeEndpoint;
     const oauthEndpoint = pAuthorizeEndpoint;
     expect(emailEndpoint).toBe(oauthEndpoint);

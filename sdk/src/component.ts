@@ -1,19 +1,19 @@
 import { STATE_COOKIE } from "./config";
-import { resolveAardwinApiOrigin } from "./aardwin-api-origin";
+import { resolveApiOrigin } from "./api-origin";
 import { resolveSdkTexts } from "./i18n";
 import type { ProviderInfo } from "./types";
 
 /**
- * <aardwin-auth site-id="…" i18n="…" aardwin-api-origin="…">
+ * <aardwin-auth site-id="…" i18n="…" api-origin="…">
  *
  * Only `site-id` is required.
  * `i18n`（可选）：'zh' | 'en' 显式指定；缺省/非法值时按 `navigator.language` 检测（含 zh → 中文，否则英文），英文是 default。切换所有文案（按钮、错误、加载提示）。
- * `aardwin-api-origin`（可选）：覆盖默认 api 入口 AARDWIN_API_ORIGIN，用于本地开发
+ * `api-origin`（可选）：覆盖默认 api 入口 API_ORIGIN，用于本地开发
  * （仅覆盖 `/api/providers` 拉取入口与 `/authorize` 兜底，provider 的 authorizeEndpoint
  * 由 admin 在平台 provider 配置里维护，不受此属性影响）。
  *
  * Renders one button per provider registered for the site (fetched from
- * `GET ${apiOrigin ?? AARDWIN_API_ORIGIN}/api/providers?site_id=…`). Each button records the provider's
+ * `GET ${apiOrigin ?? API_ORIGIN}/api/providers?site_id=…`). Each button records the provider's
  * authorizeEndpoint (api 返回的、admin 按 provider 配的 bff origin)，clicking sets the CSRF state cookie
  * and does a full-page redirect to `${authorizeEndpoint}/authorize?…` —— 微信跳国内
  * bff，Google 跳海外 bff。换码仍走 api `/api/oauth/token`（见 exchangeCode）。
@@ -42,7 +42,7 @@ export class AardwinAuthElement extends HTMLElement {
   }
 
   static get observedAttributes(): string[] {
-    return ["site-id", "i18n", "aardwin-api-origin"];
+    return ["site-id", "i18n", "api-origin"];
   }
 
   attributeChangedCallback(): void {
@@ -60,8 +60,8 @@ export class AardwinAuthElement extends HTMLElement {
     // i18n 属性：与 site-id 同处读取，属性变化（observedAttributes 已声明）会触发
     // attributeChangedCallback → 重渲染。
     const texts = resolveSdkTexts(this.getAttribute("i18n"), navigator.language);
-    // aardwin-api-origin 属性覆盖默认 AARDWIN_API_ORIGIN（api 入口）。空串/省略走常量。
-    const apiOrigin = resolveAardwinApiOrigin(this.getAttribute("aardwin-api-origin"));
+    // api-origin 属性覆盖默认 API_ORIGIN（api 入口）。空串/省略走常量。
+    const apiOrigin = resolveApiOrigin(this.getAttribute("api-origin"));
 
     if (!siteId) {
       this.mount(`<div class="error">${escapeHtml(texts.missingSiteId)}</div>`);
@@ -166,7 +166,7 @@ export class AardwinAuthElement extends HTMLElement {
   /**
    * Generate state nonce, set the SameSite=Lax cookie, full-page redirect to the
    * provider's regional bff `/authorize`. endpoint 由 api 在 /api/providers 响应里给出，
-   * 已去末尾 /；空 endpoint 时回退到 aardwin-api-origin 属性（已解析，省略时即 AARDWIN_API_ORIGIN）。
+   * 已去末尾 /；空 endpoint 时回退到 api-origin 属性（已解析，省略时即 API_ORIGIN）。
    *
    * state 生成 + cookie 设置在 OAuth/email 分岔之前无条件执行：email 验证码流程同样需要
    * /console/apps/callback 的 state 校验通过，否则 AppCallbackPage 会判 state_mismatch。

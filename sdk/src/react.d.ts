@@ -18,7 +18,7 @@ interface AardwinAuthAttributes {
   /** 显式指定语言；缺省时组件按 navigator.language 检测。 */
   i18n?: AardwinAuthI18n;
   /** 覆盖默认 api 入口，用于本地开发。 */
-  'aardwin-api-origin'?: string;
+  'api-origin'?: string;
 }
 
 declare global {

@@ -16,7 +16,7 @@ export interface CreateAardwinClientOptions {
   siteId: string;
   /** Server-only `client_secret`. NEVER ship to the browser. */
   clientSecret: string;
-  /** Override the hardcoded api origin (default: `https://oauth.aard.win`). */
+  /** Override the hardcoded api origin (default: `https://api.aard.win`). */
   apiOrigin?: string;
   /** Per-client default timeout in ms; `0` / `Infinity` disables. Default: 8000. */
   timeoutMs?: number;

@@ -34,7 +34,7 @@ import { createAardwinClient } from '@aardwin/auth-server';
 const client = createAardwinClient({
   siteId: 'YOUR_SITE_ID',
   clientSecret: process.env.AARDWIN_CLIENT_SECRET, // server-only; NEVER ship to the browser
-  // apiOrigin: 'https://oauth.aard.win', // default; override for local dev
+  // apiOrigin: 'https://api.aard.win', // default; override for local dev
   // timeoutMs: 8000,                  // default; 0 / Infinity disables
 });
 
@@ -242,7 +242,7 @@ This package touches exactly one endpoint:
 | --------------------- | ------------------- | ---------------------------------------------------------- | ---------------------------------------------------------- |
 | `POST /api/oauth/token` | your backend → api | `{ site_id, code, client_secret }` (JSON, `client_secret_post`) | `{ user_id, provider, nickname?, avatar? }` (envelope `code: 0`) |
 
-The default origin is `https://oauth.aard.win` (the aardwin **api**, not the bff). For the full
+The default origin is `https://api.aard.win` (the aardwin **api**, not the bff). For the full
 flow table (provider list, authorize redirect, callback) see the browser SDK's `SDK.md`; for a
 side-by-side of both SDKs' origin-override params, see [technical-architecture.md §3.4](../../docs/technical-architecture.md).
 

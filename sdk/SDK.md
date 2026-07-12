@@ -31,7 +31,7 @@ import '@aardwin/auth-browser'; // side-effect: registers <aardwin-auth>
 |------|------|------|------|
 | `site-id` | 是 | `string` | 在控制台创建的站点 ID |
 | `i18n` | 否 | `'zh' \| 'en'` | 显式指定语言；留空则按 `navigator.language` 自动检测，默认英文 |
-| `aardwin-api-origin` | 否 | `string` | 覆盖 API 入口地址，本地开发时指向 `http://localhost:4000` |
+| `api-origin` | 否 | `string` | 覆盖 API 入口地址，本地开发时指向 `http://localhost:4000` |
 
 ## 0. Register your app (on the aardwin developer portal)
 
@@ -56,13 +56,13 @@ callbackUrl for anti-abuse Origin checks.
 <aardwin-auth site-id="YOUR_SITE_ID"></aardwin-auth>
 ```
 
-> The backend origin defaults to the hardcoded `AARDWIN_API_ORIGIN` (`https://oauth.aard.win`) in
-> config. The tag takes `site-id` (required), an optional `aardwin-api-origin` attribute to override
+> The backend origin defaults to the hardcoded `API_ORIGIN` (`https://api.aard.win`) in
+> config. The tag takes `site-id` (required), an optional `api-origin` attribute to override
 > the api entry origin (see below), and an `i18n` attribute (`'zh' | 'en'`; defaults to English, auto-detects Chinese via `navigator.language`).
 
-#### `aardwin-api-origin` (optional)
+#### `api-origin` (optional)
 
-Override the SDK's default api entry (`AARDWIN_API_ORIGIN`) per-instance. Only affects:
+Override the SDK's default api entry (`API_ORIGIN`) per-instance. Only affects:
 
 - the `/api/providers` fetch origin, and
 - the `/authorize` fallback base (used only when a provider's `authorizeEndpoint` is empty).
@@ -73,10 +73,10 @@ For local dev, have a super_admin set the provider's BFF 网址 to a reachable b
 
 ```html
 <!-- dev: pull providers from local api -->
-<aardwin-auth site-id="YOUR_SITE_ID" aardwin-api-origin="http://localhost:4000"></aardwin-auth>
+<aardwin-auth site-id="YOUR_SITE_ID" api-origin="http://localhost:4000"></aardwin-auth>
 ```
 
-Empty string / absent attribute falls back to `AARDWIN_API_ORIGIN`.
+Empty string / absent attribute falls back to `API_ORIGIN`.
 
 > `@aardwin/auth-server`（后端换码）有对等的 `origin` 参数。两个 sdk 的 origin 覆盖参数对照见 [technical-architecture.md §3.4](../../docs/technical-architecture.md)。
 
@@ -90,7 +90,7 @@ bun add @aardwin/auth-browser
 import '@aardwin/auth-browser'; // side-effect: registers <aardwin-auth>
 ```
 
-The element fetches `GET {AARDWIN_API_ORIGIN}/api/providers?site_id=…` (`AARDWIN_API_ORIGIN` is the
+The element fetches `GET {API_ORIGIN}/api/providers?site_id=…` (`API_ORIGIN` is the
 aardwin **api** entry) and renders one button per provider you registered. Each response item
 carries an `authorizeEndpoint` (the bff origin for that provider, admin-configured on `platform_provider_status.bff_origin`). Clicking a button:
 
@@ -107,7 +107,7 @@ carries an `authorizeEndpoint` (the bff origin for that provider, admin-configur
 import '@aardwin/auth-browser/react.d.ts';
 ```
 
-import 后 `<aardwin-auth>` 的属性（`site-id` 必填、`i18n?`、`aardwin-api-origin?`）有自动补全，兼容 React 18 与 React 19 / Next.js 15。
+import 后 `<aardwin-auth>` 的属性（`site-id` 必填、`i18n?`、`api-origin?`）有自动补全，兼容 React 18 与 React 19 / Next.js 15。
 
 **非 React 框架**（Preact / Solid / Vue JSX）：本声明不适用，请在你的项目里自行加 3 行：
 
@@ -115,7 +115,7 @@ import 后 `<aardwin-auth>` 的属性（`site-id` 必填、`i18n?`、`aardwin-ap
 declare global {
   namespace JSX {
     interface IntrinsicElements {
-      'aardwin-auth': { 'site-id': string; i18n?: 'zh' | 'en'; 'aardwin-api-origin'?: string };
+      'aardwin-auth': { 'site-id': string; i18n?: 'zh' | 'en'; 'api-origin'?: string };
     }
   }
 }

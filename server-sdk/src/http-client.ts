@@ -21,7 +21,7 @@ import { AardwinError } from './aardwin-error';
 import { DEFAULT_TIMEOUT_MS } from './config';
 
 export interface HttpPostOptions {
-  /** aardwin api origin (e.g. `https://oauth.aard.win`). Trailing slashes are trimmed. */
+  /** aardwin api origin (e.g. `https://api.aard.win`). Trailing slashes are trimmed. */
   apiOrigin: string;
   /** Request path beginning with `/`, e.g. `/api/oauth/token`. */
   path: string;

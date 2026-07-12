@@ -81,7 +81,7 @@ describe('click → state cookie + authorize redirect', () => {
           Promise.resolve({
             data: {
               providers: [
-                { id: 'github', authorizeEndpoint: 'https://oauth.aard.win' },
+                { id: 'github', authorizeEndpoint: 'https://auth.aard.win' },
               ],
             },
           }),

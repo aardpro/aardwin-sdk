@@ -84,7 +84,7 @@ describe('createAardwinClient — defaults applied when input omits fields', () 
       fetch: recordingFetch(captured, { user_id: 'u', provider: 'p' }),
     });
     await client.exchangeCode({ code: 'CODE' });
-    expect(captured.url).toBe('https://oauth.aard.win/api/oauth/token');
+    expect(captured.url).toBe('https://api.aard.win/api/oauth/token');
   });
 });
 
@@ -138,7 +138,7 @@ describe('createAardwinClient — per-call overrides win over client defaults', 
     await client.exchangeCode({ code: 'CODE', fetch: overrideFetch });
 
     expect(clientCalls).toEqual([]);
-    expect(overrideCalls).toEqual(['https://oauth.aard.win/api/oauth/token']);
+    expect(overrideCalls).toEqual(['https://api.aard.win/api/oauth/token']);
   });
 });
 

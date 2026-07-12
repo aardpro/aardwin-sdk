@@ -19,20 +19,20 @@ describe("sdk build output (regression guard for batch 5 iife stub bug)", () => 
     expect(iife).toMatch(/aardwin-auth/);
   });
 
-  it("iife inlines AARDWIN_API_ORIGIN + /api/providers fetch", async () => {
+  it("iife inlines API_ORIGIN + /api/providers fetch", async () => {
     const iife = await readDist("aardwin-auth.iife.js");
-    expect(iife).toMatch(/oauth\.aard\.win/);
+    expect(iife).toMatch(/api\.aard\.win/);
     expect(iife).toMatch(/api\/providers/);
   });
 
-  it("iife contains the aardwin-api-origin attribute name (regression guard against minify)", async () => {
+  it("iife contains the api-origin attribute name (regression guard against minify)", async () => {
     const iife = await readDist("aardwin-auth.iife.js");
-    expect(iife).toMatch(/aardwin-api-origin/);
+    expect(iife).toMatch(/api-origin/);
   });
 
-  it("index.mjs (browser entry) contains customElements + AARDWIN_API_ORIGIN", async () => {
+  it("index.mjs (browser entry) contains customElements + API_ORIGIN", async () => {
     const mjs = await readDist("index.mjs");
     expect(mjs).toMatch(/customElements/);
-    expect(mjs).toMatch(/oauth\.aard\.win/);
+    expect(mjs).toMatch(/api\.aard\.win/);
   });
 });

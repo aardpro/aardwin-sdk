@@ -1,7 +1,7 @@
 /**
  * SDK 文案字典与 locale 解析。
  *
- * 遵循 sdk 现有「DOM-free 纯函数 + 单测无 document」模式（见 aardwin-api-origin.ts）。
+ * 遵循 sdk 现有「DOM-free 纯函数 + 单测无 document」模式（见 api-origin.ts）。
  * component.ts 调 resolveSdkTexts(attr, navLang) 取字典，渲染时按 key 引用。
  *
  * 解析链（优先级从高到低）：
