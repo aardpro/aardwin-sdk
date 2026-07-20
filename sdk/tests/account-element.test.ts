@@ -115,17 +115,4 @@ describe('aardwin-account — iframe rendering', () => {
     expect(iframe!.getAttribute('sandbox')).toContain('allow-popups');
   });
 
-  it('iframe has allow attribute with scripts same-origin popups', async () => {
-    const el = document.createElement('aardwin-account') as HTMLElement;
-    el.setAttribute('code', 'handoff_abc');
-    el.setAttribute('manage-url', 'https://auth.aard.win/account/manage');
-    document.body.appendChild(el);
-    await waitFor(20);
-
-    const shadow = (el as unknown as { shadowRoot: ShadowRoot | null }).shadowRoot;
-    const iframe = shadow?.querySelector('iframe');
-    expect(iframe!.getAttribute('allow')).toContain('scripts');
-    expect(iframe!.getAttribute('allow')).toContain('same-origin');
-    expect(iframe!.getAttribute('allow')).toContain('popups');
-  });
 });

@@ -51,7 +51,7 @@ export class AardwinAccountElement extends HTMLElement {
 
     this.mount(
       `<style>:host{display:block;width:100%}iframe{width:100%;border:0;min-height:400px}</style>
-<iframe src="${escapeAttr(src)}" allow="scripts same-origin popups" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>`,
+<iframe src="${escapeAttr(src)}" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>`,
     );
   }
 

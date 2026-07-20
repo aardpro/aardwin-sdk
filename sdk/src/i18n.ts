@@ -34,8 +34,6 @@ export interface SdkTexts {
   missingAccountCode: string;
   /** <aardwin-account> 缺 manage-url 属性 */
   missingManageUrl: string;
-  /** <aardwin-account> 加载管理页中 */
-  loadingAccount: string;
 }
 
 export const LABELS: Record<SdkLang, Record<string, string>> = {
@@ -54,7 +52,6 @@ const ZH: SdkTexts = {
   labels: LABELS.zh,
   missingAccountCode: 'aardwin-account 需要 code 属性',
   missingManageUrl: 'aardwin-account 需要 manage-url 属性',
-  loadingAccount: '加载账户管理…',
 };
 
 const EN: SdkTexts = {
@@ -67,7 +64,6 @@ const EN: SdkTexts = {
   labels: LABELS.en,
   missingAccountCode: 'aardwin-account requires a code attribute',
   missingManageUrl: 'aardwin-account requires a manage-url attribute',
-  loadingAccount: 'Loading account management...',
 };
 
 export function resolveSdkTexts(
