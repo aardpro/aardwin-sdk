@@ -20,7 +20,7 @@
     "dev": "bun --watch src/index.ts",
     "build": "bun run build:dist && bun run build:types",
     "build:dist": "bun build src/index.ts --outfile dist/index.mjs --target node --minify",
-    "build:types": "tsc --emitDeclarationOnly --declaration --outDir dist",
+    "build:types": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "prepublishOnly": "bun run clean && bun run build && bun test",
@@ -49,5 +49,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
   }
 }

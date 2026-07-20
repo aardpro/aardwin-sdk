@@ -33,8 +33,8 @@
     "dev": "bun --watch src/index.ts",
     "build": "bun run build:dist && bun run build:types",
     "build:dist": "bun build src/index.ts --outfile dist/index.mjs --target browser --minify && node -e \"require('fs').copyFileSync('src/react.d.ts','dist/react.d.ts')\"",
-    "build:types": "tsc --emitDeclarationOnly --declaration --outDir dist",
-    "build:iife": "bun build src/index.ts --outfile dist/aardwin-auth.iife.js --format iife --target browser --minify && node -e \"require('fs').copyFileSync('dist/aardwin-auth.iife.js','../../packages/frontend/public/aardwin-auth.iife.js')\"",
+    "build:types": "tsc -p tsconfig.build.json",
+    "build:iife": "bun build src/index.ts --outfile dist/aardwin-auth.iife.js --format iife --target browser --minify",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "prepublishOnly": "bun run clean && bun run build && bun run build:iife && bun test",
@@ -69,6 +69,7 @@
     "node": ">=18"
   },
   "devDependencies": {
-    "happy-dom": "^20.10.6"
+    "happy-dom": "^20.10.6",
+    "typescript": "^5.5.4"
   }
 }

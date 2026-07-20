@@ -57,16 +57,20 @@ describe("server-sdk build output (self-containment guard, Path B)", () => {
 
   it("dist/index.mjs inlines the api origin + exchange endpoint", () => {
     const mjs = readDist("index.mjs");
-    expect(mjs).toMatch(/oauth\.aard\.win/);
+    expect(mjs).toMatch(/api\.aard\.win/);
     expect(mjs).toMatch(/api\/oauth\/token/);
   });
 
   it("every dist/**/*.d.ts contains NO @aardwin/share reference", () => {
     const dtsFiles = listDistFiles().filter((p) => extname(p) === ".ts");
     expect(dtsFiles.length).toBeGreaterThan(0);
+    // Match only real module references (static `from` / `import type ... from` /
+    // dynamic `import("…")`), not doc comments like "not imported from `@aardwin/share`"
+    // (which use backticks, not quotes).
+    const shareRef = /(?:from|import)\s*\(?\s*['"]@aardwin\/share/;
     for (const file of dtsFiles) {
       const content = readFileSync(file, "utf8");
-      expect(content).not.toMatch(/@aardwin\/share/);
+      expect(content).not.toMatch(shareRef);
     }
   });
 });
