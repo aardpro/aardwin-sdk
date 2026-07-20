@@ -7,6 +7,9 @@
  */
 import { exchangeCode } from './exchange-code';
 import type { ExchangeCodeInput } from './exchange-code';
+import { createAccountHandoff } from './create-account-handoff';
+import type { CreateAccountHandoffInput } from './create-account-handoff';
+import type { AccountHandoffOutput } from './create-account-handoff';
 import { normalizeOrigin } from './config';
 import type { AuthUser } from './types';
 
@@ -34,6 +37,12 @@ export interface AardwinClient {
    * Fields omitted on `input` fall back to the client's defaults.
    */
   exchangeCode(input: ExchangeCodeInput): Promise<AuthUser>;
+
+  /**
+   * Create an account-handoff code for embedding <aardwin-account>.
+   * One-shot (no retry). Fields omitted on `input` fall back to the client's defaults.
+   */
+  createAccountHandoff(input: CreateAccountHandoffInput): Promise<AccountHandoffOutput>;
 }
 
 /**
@@ -53,6 +62,18 @@ export function createAardwinClient(
       return exchangeCode({
         code: input.code,
         siteId: input.siteId ?? opts.siteId,
+        clientSecret: input.clientSecret ?? opts.clientSecret,
+        apiOrigin: input.apiOrigin ?? origin,
+        timeoutMs: input.timeoutMs ?? baseTimeout,
+        signal: input.signal,
+        fetch: input.fetch ?? fetchImpl,
+      });
+    },
+
+    createAccountHandoff(input) {
+      return createAccountHandoff({
+        siteId: input.siteId ?? opts.siteId,
+        userId: input.userId,
         clientSecret: input.clientSecret ?? opts.clientSecret,
         apiOrigin: input.apiOrigin ?? origin,
         timeoutMs: input.timeoutMs ?? baseTimeout,

@@ -29,6 +29,13 @@ export interface SdkTexts {
   emailButton: string;
   /** provider 标签字典，按当前语言给出 */
   labels: Record<string, string>;
+
+  /** <aardwin-account> 缺 code 属性 */
+  missingAccountCode: string;
+  /** <aardwin-account> 缺 manage-url 属性 */
+  missingManageUrl: string;
+  /** <aardwin-account> 加载管理页中 */
+  loadingAccount: string;
 }
 
 export const LABELS: Record<SdkLang, Record<string, string>> = {
@@ -45,6 +52,9 @@ const ZH: SdkTexts = {
   oauthSuffix: '登录',
   emailButton: '继续使用邮箱',
   labels: LABELS.zh,
+  missingAccountCode: 'aardwin-account 需要 code 属性',
+  missingManageUrl: 'aardwin-account 需要 manage-url 属性',
+  loadingAccount: '加载账户管理…',
 };
 
 const EN: SdkTexts = {
@@ -55,6 +65,9 @@ const EN: SdkTexts = {
   oauthSuffix: 'Sign in',
   emailButton: 'Continue with Email',
   labels: LABELS.en,
+  missingAccountCode: 'aardwin-account requires a code attribute',
+  missingManageUrl: 'aardwin-account requires a manage-url attribute',
+  loadingAccount: 'Loading account management...',
 };
 
 export function resolveSdkTexts(

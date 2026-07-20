@@ -14,3 +14,13 @@ export interface AuthUser {
   nickname?: string;
   avatar?: string;
 }
+
+/**
+ * Result returned by `createAccountHandoff()`. Mirrors the `POST /api/account/handoff`
+ * envelope `data` field. `expires_in` is the TTL in seconds (always 60).
+ */
+export interface AccountHandoffResult {
+  code: string;
+  expires_in: number;
+  manage_url: string;
+}
