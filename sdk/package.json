@@ -1,6 +1,6 @@
 {
   "name": "@aardwin/auth-browser",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "aardwin 嵌入式 OAuth 登录组件 —— <aardwin-auth> Web Component",
   "license": "MIT",
   "type": "module",

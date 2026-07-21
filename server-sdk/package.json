@@ -1,6 +1,6 @@
 {
   "name": "@aardwin/auth-server",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "aardwin server SDK — framework-agnostic API client (exchangeCode + future methods)",
   "license": "MIT",
   "type": "module",
