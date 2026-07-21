@@ -28,8 +28,12 @@ jobs:
 
       - name: Publish @aardwin/auth-browser
         working-directory: sdk
-        run: npm publish --provenance --access public
+        run: |
+          bun install --frozen-lockfile
+          npm publish --provenance --access public
 
       - name: Publish @aardwin/auth-server
         working-directory: server-sdk
-        run: npm publish --provenance --access public
+        run: |
+          bun install --frozen-lockfile
+          npm publish --provenance --access public
