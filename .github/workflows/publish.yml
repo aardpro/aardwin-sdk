@@ -1,0 +1,39 @@
+name: Publish to npm (Trusted Publishing)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - sdk/package.json
+      - server-sdk/package.json
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Publish @aardwin/auth-browser
+        working-directory: sdk
+        run: |
+          bun install --frozen-lockfile
+          npm publish --provenance --access public
+
+      - name: Publish @aardwin/auth-server
+        working-directory: server-sdk
+        run: |
+          bun install --frozen-lockfile
+          npm publish --provenance --access public
