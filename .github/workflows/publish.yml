@@ -3,10 +3,9 @@ name: Publish to npm (Trusted Publishing)
 on:
   workflow_dispatch:
   push:
-    branches: [main]
-    paths:
-      - sdk/package.json
-      - server-sdk/package.json
+    tags:
+      - auth-browser-v*
+      - auth-server-v*
 
 jobs:
   publish:
@@ -23,7 +22,7 @@ jobs:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
 
-      - name: Upgrade npm (OIDC Trusted Publishing requires npm >= 11.5.1; node 22 ships 10.x)
+      - name: Upgrade npm (OIDC Trusted Publishing needs npm >= 11.5.1)
         run: npm install -g npm@latest
 
       - uses: oven-sh/setup-bun@v2
@@ -32,12 +31,14 @@ jobs:
 
       - name: Publish @aardwin/auth-browser
         working-directory: sdk
+        if: startsWith(github.ref_name, 'auth-browser-v')
         run: |
           bun install --frozen-lockfile
           npm publish --provenance --access public
 
       - name: Publish @aardwin/auth-server
         working-directory: server-sdk
+        if: startsWith(github.ref_name, 'auth-server-v')
         run: |
           bun install --frozen-lockfile
           npm publish --provenance --access public
