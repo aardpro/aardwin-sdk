@@ -234,16 +234,18 @@ describe('resolveSdkTexts — i18n locale resolution', () => {
     const compose = (
       texts: ReturnType<typeof resolveSdkTexts>,
       id: string,
-    ): string =>
-      `${texts.continueWithPrefix} ${texts.labels[id] ?? id}${
-        texts.continueWithSuffix ? ` ${texts.continueWithSuffix}` : ''
+    ): string => {
+      const sep = texts.lang === 'zh' ? '' : ' ';
+      return `${texts.continueWithPrefix}${sep}${texts.labels[id] ?? id}${
+        texts.continueWithSuffix ? `${sep}${texts.continueWithSuffix}` : ''
       }`;
+    };
     const en = resolveSdkTexts('en');
     const zh = resolveSdkTexts('zh');
     expect(compose(en, 'google')).toBe('Continue with Google');
     expect(compose(en, 'discord')).toBe('Continue with Discord');
-    expect(compose(zh, 'wechat')).toBe('使用 微信 继续');
-    expect(compose(zh, 'github')).toBe('使用 GitHub 继续');
+    expect(compose(zh, 'wechat')).toBe('使用微信继续');
+    expect(compose(zh, 'github')).toBe('使用GitHub继续');
   });
 
   it('no attr + navLang=["fr","de"] → EN', () => {

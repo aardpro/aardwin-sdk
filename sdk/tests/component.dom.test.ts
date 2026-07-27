@@ -272,7 +272,7 @@ describe('issue 2 — lang passthrough on click (email + oauth)', () => {
     expect(href).toContain('/authorize');
     expect(href).toContain('provider=wechat');
     expect(href).toContain('lang=zh');
-    // zh 文案形状：使用 <provider> 继续。
-    expect(btn!.textContent).toBe('使用 微信 继续');
+    // zh 文案形状：使用<provider>继续（无空格）。
+    expect(btn!.textContent).toBe('使用微信继续');
   });
 });

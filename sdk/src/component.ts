@@ -142,13 +142,14 @@ export class AardwinAuthElement extends HTMLElement {
         const isEmail = p.id === "email";
         // email 与 OAuth 统一由 api 返回的 authorizeEndpoint（email-endpoint attribute 已移除）。
         const endpoint = p.authorizeEndpoint;
-        // OAuth：「{continueWithPrefix} {label}[ {continueWithSuffix}]」
-        //   en → "Continue with Google"；zh → "使用 微信 继续"（issue 6）。
+        // OAuth：「{prefix}{sep}{label}[{sep}{suffix}]」；sep: zh="" / en=" "。
+        //   en → "Continue with Google"；zh → "使用微信继续"。
         // email 沿用独立文案 emailButton（Continue with Email / 继续使用邮箱）。
+        const sep = texts.lang === "zh" ? "" : " ";
         const label = isEmail
           ? texts.emailButton
-          : `${texts.continueWithPrefix} ${texts.labels[p.id] ?? p.id}${
-              texts.continueWithSuffix ? ` ${texts.continueWithSuffix}` : ""
+          : `${texts.continueWithPrefix}${sep}${texts.labels[p.id] ?? p.id}${
+              texts.continueWithSuffix ? `${sep}${texts.continueWithSuffix}` : ""
             }`;
         // issue 6：每个 provider 配 16px 单色 SVG（currentColor），主题中立；未知 provider 无图标。
         const icon = PROVIDER_ICONS[p.id] ?? "";
