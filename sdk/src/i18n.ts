@@ -23,12 +23,18 @@ export interface SdkTexts {
   loadFailed: string;
   /** 零渠道 */
   zeroChannels: string;
-  /** OAuth 按钮后缀（texts.labels[id] + ' ' + oauthSuffix） */
-  oauthSuffix: string;
-  /** email 按钮文案 */
+  /** OAuth 按钮文案前缀，与 label/后缀拼成「{prefix} {label}[ {suffix}]」。
+   *  en="Continue with" / zh="使用"。 */
+  continueWithPrefix: string;
+  /** OAuth 按钮文案后缀（可空）：en="" / zh="继续"。
+   *  en 无后缀 → 「Continue with Google」；zh → 「使用 微信 继续」。 */
+  continueWithSuffix: string;
+  /** email 按钮文案（保持 Continue with Email / 继续使用邮箱，独立于前缀方案） */
   emailButton: string;
   /** provider 标签字典，按当前语言给出 */
   labels: Record<string, string>;
+  /** 解析出的 locale 代码，回传给 startAuth 拼到跳转 URL 的 ?lang=（issue 2） */
+  lang: SdkLang;
 
   /** <aardwin-account> 缺 code 属性 */
   missingAccountCode: string;
@@ -47,9 +53,11 @@ const ZH: SdkTexts = {
   loading: '加载登录方式…',
   loadFailed: '登录方式加载失败，请稍后重试',
   zeroChannels: '该站点未启用任何登录方式',
-  oauthSuffix: '登录',
+  continueWithPrefix: '使用',
+  continueWithSuffix: '继续',
   emailButton: '继续使用邮箱',
   labels: LABELS.zh,
+  lang: 'zh',
   missingAccountCode: 'aardwin-account 需要 code 属性',
   missingManageUrl: 'aardwin-account 需要 manage-url 属性',
 };
@@ -59,9 +67,11 @@ const EN: SdkTexts = {
   loading: 'Loading login options...',
   loadFailed: 'Failed to load login options. Please try again later.',
   zeroChannels: 'No login channels enabled for this site',
-  oauthSuffix: 'Sign in',
+  continueWithPrefix: 'Continue with',
+  continueWithSuffix: '',
   emailButton: 'Continue with Email',
   labels: LABELS.en,
+  lang: 'en',
   missingAccountCode: 'aardwin-account requires a code attribute',
   missingManageUrl: 'aardwin-account requires a manage-url attribute',
 };

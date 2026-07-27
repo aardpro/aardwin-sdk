@@ -104,11 +104,175 @@ describe('click → state cookie + authorize redirect', () => {
     // state cookie = randomState() 的 16 bytes → 32 hex 字符。
     expect(document.cookie).toMatch(/aard_win_auth_state=[0-9a-f]{32}/);
 
-    // 重定向到 ${endpoint}/authorize?site_id=…&provider=github&state=…
+    // 重定向到 ${endpoint}/authorize?site_id=…&provider=github&state=…&lang=…
     const href = window.location.href;
     expect(href).toContain('/authorize');
     expect(href).toContain('site_id=test-site');
     expect(href).toContain('provider=github');
     expect(href).toContain('state=');
+    // issue 2：locale 透传到 /authorize（lang 取自 i18n 属性，此处 zh|en 之一）。
+    expect(href).toMatch(/lang=(zh|en)/);
+  });
+});
+
+/**
+ * issue 6：按钮重设计。
+ *   - 固定顺序 Wechat → Google → Outlook → Github → Discord → Email（与 api 返回顺序无关）。
+ *   - 等宽全宽纵向列（wrap 为 flex-direction:column、btn 为 width:100%）。
+ *   - 前 5 个带边框 button；email 为链接形态（btn-email：无边框、透明底、hover 下划线）。
+ *   - 每个按钮渲染 16px 单色 SVG icon。
+ */
+describe('issue 6 — button redesign: order, layout, email link, icons', () => {
+  afterEach(() => {
+    globalThis.fetch = ORIGINAL_FETCH;
+    document.body.innerHTML = '';
+    clearStateCookie();
+  });
+
+  it('renders providers in fixed order regardless of api order, equal-width column, email as link, with icons', async () => {
+    // 故意打乱 api 返回顺序，验证 render 按固定顺序排列。
+    globalThis.fetch = mock(() =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: {
+              providers: [
+                { id: 'discord', authorizeEndpoint: 'https://auth.aard.win' },
+                { id: 'email', authorizeEndpoint: 'https://auth.aard.win' },
+                { id: 'google', authorizeEndpoint: 'https://auth.aard.win' },
+                { id: 'wechat', authorizeEndpoint: 'https://auth.aard.win' },
+                { id: 'github', authorizeEndpoint: 'https://auth.aard.win' },
+                { id: 'outlook', authorizeEndpoint: 'https://auth.aard.win' },
+              ],
+            },
+          }),
+      }),
+    ) as unknown as typeof fetch;
+
+    const el = document.createElement('aardwin-auth') as HTMLElement;
+    el.setAttribute('site-id', 'test-site');
+    el.setAttribute('i18n', 'en');
+    document.body.appendChild(el);
+    await waitFor(50);
+
+    const shadow = (el as unknown as { shadowRoot: ShadowRoot | null }).shadowRoot;
+    const buttons = Array.from(
+      shadow?.querySelectorAll<HTMLButtonElement>('button.btn') ?? [],
+    );
+
+    // 固定顺序（issue 6）：与上方打乱后的 api 顺序无关。
+    const order = buttons.map((b) => b.getAttribute('data-provider'));
+    expect(order).toEqual([
+      'wechat',
+      'google',
+      'outlook',
+      'github',
+      'discord',
+      'email',
+    ]);
+
+    // 前 5 个 = 描边 button（class 仅 btn）；email = 链接形态（btn btn-email）。
+    expect(buttons[0]!.className).toBe('btn');
+    expect(buttons[4]!.className).toBe('btn');
+    const emailBtn = buttons[5]!;
+    expect(emailBtn.className).toBe('btn btn-email');
+
+    // 等宽全宽纵向列：wrap 为 flex-direction:column，btn 为 width:100%。
+    const style = shadow?.querySelector('style')?.textContent ?? '';
+    expect(style).toContain('flex-direction:column');
+    expect(style).toContain('width:100%');
+    // email 链接形态：无边框、透明底、hover 下划线。
+    expect(style).toContain('.btn-email');
+    expect(style).toContain('text-decoration:underline');
+
+    // 每个按钮都渲染了 16px 单色 SVG icon。
+    for (const b of buttons) {
+      const svg = b.querySelector('svg');
+      expect(svg).toBeTruthy();
+      expect(svg?.getAttribute('width')).toBe('16');
+      expect(svg?.getAttribute('height')).toBe('16');
+    }
+
+    // en 文案形状：Continue with <Provider>；email 沿用 Continue with Email。
+    expect(buttons[1]!.textContent).toBe('Continue with Google');
+    expect(emailBtn.textContent).toBe('Continue with Email');
+  });
+});
+
+/**
+ * issue 2（DOM）：email 与 OAuth 两条跳转都透传 ?lang=，且 lang 跟随 i18n 属性。
+ */
+describe('issue 2 — lang passthrough on click (email + oauth)', () => {
+  afterEach(() => {
+    globalThis.fetch = ORIGINAL_FETCH;
+    document.body.innerHTML = '';
+    clearStateCookie();
+  });
+
+  it('clicking the email link redirects to /email-auth/ with lang=en (i18n=en)', async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: {
+              providers: [
+                { id: 'email', authorizeEndpoint: 'https://auth.aard.win' },
+              ],
+            },
+          }),
+      }),
+    ) as unknown as typeof fetch;
+
+    const el = document.createElement('aardwin-auth') as HTMLElement;
+    el.setAttribute('site-id', 'test-site');
+    el.setAttribute('i18n', 'en');
+    document.body.appendChild(el);
+    await waitFor(50);
+
+    const shadow = (el as unknown as { shadowRoot: ShadowRoot | null }).shadowRoot;
+    const emailBtn = shadow?.querySelector<HTMLButtonElement>('button.btn-email');
+    expect(emailBtn).toBeTruthy();
+    emailBtn!.click();
+
+    const href = window.location.href;
+    expect(href).toContain('/email-auth/test-site');
+    expect(href).toContain('state=');
+    expect(href).toContain('lang=en');
+  });
+
+  it('clicking an oauth button redirects to /authorize with deterministic lang (i18n=zh → lang=zh)', async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: {
+              providers: [
+                { id: 'wechat', authorizeEndpoint: 'https://auth.aard.win' },
+              ],
+            },
+          }),
+      }),
+    ) as unknown as typeof fetch;
+
+    const el = document.createElement('aardwin-auth') as HTMLElement;
+    el.setAttribute('site-id', 'test-site');
+    el.setAttribute('i18n', 'zh');
+    document.body.appendChild(el);
+    await waitFor(50);
+
+    const shadow = (el as unknown as { shadowRoot: ShadowRoot | null }).shadowRoot;
+    const btn = shadow?.querySelector<HTMLButtonElement>('button.btn');
+    expect(btn).toBeTruthy();
+    btn!.click();
+
+    const href = window.location.href;
+    expect(href).toContain('/authorize');
+    expect(href).toContain('provider=wechat');
+    expect(href).toContain('lang=zh');
+    // zh 文案形状：使用 <provider> 继续。
+    expect(btn!.textContent).toBe('使用 微信 继续');
   });
 });

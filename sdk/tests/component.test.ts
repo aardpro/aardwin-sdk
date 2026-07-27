@@ -113,57 +113,65 @@ describe('startAuth email branch — state contract', () => {
     return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
   }
 
-  it('email 跳转 URL 带 ?state= 且路径为 /email-auth/:siteId', () => {
+  it('email 跳转 URL 带 ?state=&lang= 且路径为 /email-auth/:siteId', () => {
     const siteId = 'site_abc';
     const endpoint = 'https://auth.aard.win';
     const provider = 'email';
     const state = sampleState();
-    // 组件表达式：provider==='email' 分支
+    const lang = 'en'; // 取自 texts.lang（resolveSdkTexts 解析出的 zh|en）
+    // 组件表达式：provider==='email' 分支（issue 2 透传 lang）
     const href =
       provider === 'email'
-        ? `${endpoint}/email-auth/${encodeURIComponent(siteId)}?state=${encodeURIComponent(state)}`
+        ? `${endpoint}/email-auth/${encodeURIComponent(siteId)}?state=${encodeURIComponent(state)}&lang=${encodeURIComponent(lang)}`
         : '';
     expect(href).toBe(
-      'https://auth.aard.win/email-auth/site_abc?state=000102030405060708090a0b0c0d0e0f',
+      'https://auth.aard.win/email-auth/site_abc?state=000102030405060708090a0b0c0d0e0f&lang=en',
     );
-    // 关键契约：state 非空地出现在 query 里。
+    // 关键契约：state 非空、lang 透传，均出现在 query 里。
     const u = new URL(href);
     expect(u.pathname).toBe('/email-auth/site_abc');
     expect(u.searchParams.get('state')).toBe(state);
+    expect(u.searchParams.get('lang')).toBe('en');
     expect(state.length).toBe(32);
   });
 
-  it('email 分支与 OAuth 分支产出同形的 state query（都非空）', () => {
+  it('email 分支与 OAuth 分支都透传 state 与 lang（issue 2）', () => {
     const siteId = 'site_abc';
     const endpoint = 'https://auth.aard.win';
     const apiOrigin = endpoint;
     const state = sampleState();
+    const lang = 'zh';
 
-    // email 分支 URL
-    const emailHref = `${endpoint}/email-auth/${encodeURIComponent(siteId)}?state=${encodeURIComponent(state)}`;
-    // OAuth 分支 URL（复制组件 let params = new URLSearchParams({site_id, provider, state})）
+    // email 分支 URL（issue 2 追加 &lang=）
+    const emailHref = `${endpoint}/email-auth/${encodeURIComponent(siteId)}?state=${encodeURIComponent(state)}&lang=${encodeURIComponent(lang)}`;
+    // OAuth 分支 URL（复制组件 let params = new URLSearchParams({site_id, provider, state, lang})）
     const params = new URLSearchParams({
       site_id: siteId,
       provider: 'github',
       state,
+      lang,
     });
     const oauthHref = `${endpoint}/authorize?${params.toString()}`;
 
     expect(new URL(emailHref).searchParams.get('state')).toBe(state);
     expect(new URL(oauthHref).searchParams.get('state')).toBe(state);
+    expect(new URL(emailHref).searchParams.get('lang')).toBe('zh');
+    expect(new URL(oauthHref).searchParams.get('lang')).toBe('zh');
     // 两条路径都带非空 state —— 这是 AppCallbackPage state 校验通过的共同前提。
     expect(new URL(emailHref).searchParams.get('state')!.length).toBeGreaterThan(0);
     expect(new URL(oauthHref).searchParams.get('state')!.length).toBeGreaterThan(0);
   });
 
-  it('endpoint 为空时 email 分支仍带 state（不依赖 endpoint 兜底）', () => {
+  it('endpoint 为空时 email 分支仍带 state 与 lang（不依赖 endpoint 兜底）', () => {
     // email 分支由 endpoint 直拼（不走 OAuth 的 endpoint||apiOrigin 兜底），
-    // 但无论 endpoint 是否为空，state 都应出现在 query 里。
+    // 但无论 endpoint 是否为空，state 与 lang 都应出现在 query 里。
     const siteId = 'site_abc';
-    const endpoint = ''; // 异常情况，仅验证 state 拼接不依赖 endpoint
+    const endpoint = ''; // 异常情况，仅验证拼接不依赖 endpoint
     const state = sampleState();
-    const href = `${endpoint}/email-auth/${encodeURIComponent(siteId)}?state=${encodeURIComponent(state)}`;
-    expect(href.endsWith(`?state=${state}`)).toBe(true);
+    const lang = 'en';
+    const href = `${endpoint}/email-auth/${encodeURIComponent(siteId)}?state=${encodeURIComponent(state)}&lang=${encodeURIComponent(lang)}`;
+    expect(href).toContain(`state=${state}`);
+    expect(href).toContain('lang=en');
   });
 });
 
@@ -171,9 +179,9 @@ describe('startAuth email branch — state contract', () => {
  * i18n 字典解析。
  *
  * 组件 render() 现通过 resolveSdkTexts(getAttribute('i18n')) 取字典，所有文案
- * （missingSiteId / loading / loadFailed / zeroChannels / oauthSuffix / emailButton）
- * 都从字典里取。email 按钮的 endpoint 与 OAuth 统一走 api 返回的 authorizeEndpoint
- * （email-endpoint attribute 已移除）。
+ * （missingSiteId / loading / loadFailed / zeroChannels / continueWithPrefix
+ *  / continueWithSuffix / emailButton）都从字典里取。email 按钮的 endpoint 与 OAuth
+ * 统一走 api 返回的 authorizeEndpoint（email-endpoint attribute 已移除）。
  *
  * 这里沿用「复制组件表达式」的纯函数风格，不引入 DOM，断言 resolveSdkTexts 的
  * locale 解析，给 CI 一个可锁定的回归契约。
@@ -198,7 +206,9 @@ describe('resolveSdkTexts — i18n locale resolution', () => {
 
   it('attr="en" → EN (no navLang needed)', () => {
     expect(resolveSdkTexts('en').emailButton).toBe('Continue with Email');
-    expect(resolveSdkTexts('EN').oauthSuffix).toBe('Sign in');
+    expect(resolveSdkTexts('EN').continueWithPrefix).toBe('Continue with');
+    expect(resolveSdkTexts('EN').continueWithSuffix).toBe('');
+    expect(resolveSdkTexts('EN').lang).toBe('en');
     expect(resolveSdkTexts('  En ').emailButton).toBe('Continue with Email');
   });
 
@@ -214,7 +224,26 @@ describe('resolveSdkTexts — i18n locale resolution', () => {
 
   it('no attr + navLang=["zh-CN","en"] → ZH (array shape)', () => {
     expect(resolveSdkTexts(null, ['zh-CN', 'en']).emailButton).toBe('继续使用邮箱');
-    expect(resolveSdkTexts(undefined, ['zh-CN', 'en']).oauthSuffix).toBe('登录');
+    expect(resolveSdkTexts(undefined, ['zh-CN', 'en']).continueWithPrefix).toBe('使用');
+    expect(resolveSdkTexts(undefined, ['zh-CN', 'en']).continueWithSuffix).toBe('继续');
+    expect(resolveSdkTexts(undefined, ['zh-CN', 'en']).lang).toBe('zh');
+  });
+
+  it('composes OAuth button label as "{prefix} {label}[ {suffix}]" per locale (issue 6)', () => {
+    // 复制 component render() 的 label 表达式，锁定两种语言的按钮文案形状。
+    const compose = (
+      texts: ReturnType<typeof resolveSdkTexts>,
+      id: string,
+    ): string =>
+      `${texts.continueWithPrefix} ${texts.labels[id] ?? id}${
+        texts.continueWithSuffix ? ` ${texts.continueWithSuffix}` : ''
+      }`;
+    const en = resolveSdkTexts('en');
+    const zh = resolveSdkTexts('zh');
+    expect(compose(en, 'google')).toBe('Continue with Google');
+    expect(compose(en, 'discord')).toBe('Continue with Discord');
+    expect(compose(zh, 'wechat')).toBe('使用 微信 继续');
+    expect(compose(zh, 'github')).toBe('使用 GitHub 继续');
   });
 
   it('no attr + navLang=["fr","de"] → EN', () => {
@@ -222,16 +251,20 @@ describe('resolveSdkTexts — i18n locale resolution', () => {
     expect(resolveSdkTexts(undefined, ['fr', 'de']).zeroChannels).toBe('No login channels enabled for this site');
   });
 
-  it('all keys are non-empty strings in both locales', () => {
+  it('all string fields non-empty except continueWithSuffix (en empty by design)', () => {
     for (const lang of ['zh', 'en'] as const) {
       const texts = resolveSdkTexts(lang);
       for (const key of Object.keys(texts) as (keyof typeof texts)[]) {
-        // labels 是 Record<string,string>（object），单独由下一条 case 覆盖，这里只校验纯字符串文案字段。
-        if (key === 'labels') continue;
+        // labels 是 Record<string,string>（object），单独由下一条 case 覆盖；
+        // continueWithSuffix 对 en 故意为空（'Continue with Google' 无后缀），单独断言。
+        if (key === 'labels' || key === 'continueWithSuffix') continue;
         expect(typeof texts[key]).toBe('string');
         expect((texts[key] as string).length).toBeGreaterThan(0);
       }
     }
+    // 锁定后缀设计契约：zh='继续'（非空）、en=''（空）。
+    expect(resolveSdkTexts('zh').continueWithSuffix).toBe('继续');
+    expect(resolveSdkTexts('en').continueWithSuffix).toBe('');
   });
 
   it('texts.labels contains all 6 provider ids in both locales', () => {
