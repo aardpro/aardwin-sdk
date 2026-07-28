@@ -27,13 +27,19 @@ const user = await exchangeCode({ code, siteId, clientSecret: process.env.AARDWI
 
 ## 配置
 
-后端 origin 硬编码在 `src/config.ts` 的 `API_ORIGIN`（指向已部署的 `@aardwin/bff`）。发布前改为真实地址。元素只接受 `site-id`（必填）和 `i18n`（预留，v1 未实现）。
+默认 api 入口硬编码在 `src/config.ts` 的 `API_ORIGIN`（`https://api.aard.win`，指向已部署的 aardwin api）。元素接受三个属性：
+
+| 属性 | 必填 | 说明 |
+|---|---|---|
+| `site-id` | 是 | 站点 ID，决定拉取哪些 provider 按钮 |
+| `i18n` | 否 | `'zh'` \| `'en'`，显式指定语言；缺省按 `navigator.language` 检测 |
+| `api-origin` | 否 | 覆盖默认 api 入口，用于本地开发 |
 
 ## 构建
 
 ```bash
-cd packages/sdk
-bun run build        # 产出 dist/index.mjs（浏览器 ESM）+ dist/server.mjs（node）+ dist/*.d.ts（类型）
+cd sdk
+bun run build        # 产出 dist/index.mjs（浏览器 ESM）+ dist/*.d.ts（类型）
 bun run build:iife   # 产出 dist/aardwin-auth.iife.js（CDN <script> 即用）
 ```
 
@@ -43,8 +49,11 @@ bun run build:iife   # 产出 dist/aardwin-auth.iife.js（CDN <script> 即用）
 src/
 ├── index.ts          # 浏览器入口（导出 + 注册元素）
 ├── component.ts      # <aardwin-auth> Web Component 实现
-├── exchange-code.ts  # server-only：exchangeCode() 换码
+├── account-element.ts # <aardwin-account> Web Component 实现
+├── api-origin.ts     # api-origin 属性解析
 ├── config.ts         # API_ORIGIN / STATE_COOKIE / PROVIDER_LABELS
+├── i18n.ts           # 多语言文案（zh / en）
+├── react.d.ts        # React JSX 类型声明（opt-in）
 └── types.ts          # AuthUser / ProviderInfo
 ```
 
@@ -62,7 +71,7 @@ src/
 
 发布步骤：
 ```bash
-cd packages/sdk
+cd sdk
 # 1. 改 src/config.ts 的 API_ORIGIN 为真实线上 api origin（发布前必改！）
 # 2. 如需升版本号
 npm version patch   # 或 minor / major
@@ -74,7 +83,7 @@ npm publish --access public
 
 **验证发布内容（不发实际 publish）**：
 ```bash
-cd packages/sdk
+cd sdk
 bun run build
 npm pack --dry-run    # 检查将要发布的文件清单
 ```
