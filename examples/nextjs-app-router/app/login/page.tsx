@@ -2,14 +2,14 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import '@aardwin/auth-browser/react.d.ts';
+import '@aardwin/auth-browser';
 
 const SITE_ID = process.env.NEXT_PUBLIC_AARDWIN_SITE_ID ?? '';
 const API_ORIGIN = process.env.NEXT_PUBLIC_AARDWIN_API_ORIGIN ?? undefined;
 
 function LoginPageInner() {
   const searchParams = useSearchParams();
-  const lang = searchParams.get('lang') ?? 'en';
+  const lang = (searchParams.get('lang') ?? 'en') as 'zh' | 'en';
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -41,15 +41,13 @@ function LoginPageInner() {
       <aardwin-auth
         site-id={SITE_ID}
         i18n={lang}
-        aardwin-api-origin={API_ORIGIN}
+        api-origin={API_ORIGIN}
         style={{ display: error ? 'none' : 'block' }}
       />
     </main>
   );
 }
 
-// Next.js 15 requires a Suspense boundary around useSearchParams() to avoid a
-// build diagnostic / CSR deopt. Wrap the inner client component here.
 export default function LoginPage() {
   return (
     <Suspense

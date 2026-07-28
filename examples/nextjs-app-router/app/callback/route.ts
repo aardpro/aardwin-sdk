@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { createAardwinClient, AardwinError } from '@aardwin/auth-server';
 import { timingSafeEqual } from 'node:crypto';
+import { createSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -32,13 +33,17 @@ export async function GET(req: NextRequest) {
 
   try {
     const user = await client.exchangeCode({ code });
+    const sid = createSession(user);
+
     const res = NextResponse.redirect(new URL('/dashboard', url));
     res.headers.append(
       'set-cookie',
       `${STATE_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax`,
     );
-    // TODO: set your own session cookie here, e.g.
-    // res.headers.append('set-cookie', 'sid=...; HttpOnly; Secure; SameSite=Lax; Path=/');
+    res.headers.append(
+      'set-cookie',
+      `sid=${sid}; HttpOnly; SameSite=Lax; Path=/; Max-Age=86400`,
+    );
     return res;
   } catch (e) {
     if (e instanceof AardwinError) {
