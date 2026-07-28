@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import '@aardwin/auth-browser';
 
 const SITE_ID = process.env.NEXT_PUBLIC_AARDWIN_SITE_ID ?? '';
 const API_ORIGIN = process.env.NEXT_PUBLIC_AARDWIN_API_ORIGIN ?? undefined;
@@ -14,6 +13,7 @@ function LoginPageInner() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    void import('@aardwin/auth-browser');
     const onError = (e: Event) => {
       const detail = (e as CustomEvent)?.detail;
       setError(detail?.message ?? 'Authentication error');
