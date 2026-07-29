@@ -143,4 +143,33 @@ describe('aardwin-account — button rendering & redirect', () => {
       Object.defineProperty(window.location, 'href', origHref);
     }
   });
+
+  it('captures return URL at click time, not mount time (SPA navigation)', async () => {
+    const el = document.createElement('aardwin-account') as HTMLElement;
+    el.setAttribute('code', 'handoff_abc');
+    el.setAttribute('manage-url', 'https://auth.aard.win/account/manage');
+    document.body.appendChild(el);
+    await waitFor(20);
+
+    const shadow = (el as unknown as { shadowRoot: ShadowRoot | null }).shadowRoot;
+    const btn = shadow?.querySelector('button');
+    expect(btn).toBeTruthy();
+
+    let navigatedTo: string | null = null;
+    const origHref = Object.getOwnPropertyDescriptor(window.location.__proto__, 'href')
+      ?? Object.getOwnPropertyDescriptor(Location.prototype, 'href');
+    Object.defineProperty(window.location, 'href', {
+      set(v: string) { navigatedTo = v; },
+      get() { return 'http://localhost/dashboard/settings'; },
+      configurable: true,
+    });
+
+    btn!.click();
+
+    expect(navigatedTo).toContain('&return=' + encodeURIComponent('http://localhost/dashboard/settings'));
+
+    if (origHref) {
+      Object.defineProperty(window.location, 'href', origHref);
+    }
+  });
 });

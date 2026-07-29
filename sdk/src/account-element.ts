@@ -47,15 +47,13 @@ export class AardwinAccountElement extends HTMLElement {
       return;
     }
 
-    const target = `${manageUrl}?code=${encodeURIComponent(code)}&return=${encodeURIComponent(location.href)}`;
-
     this.mount(
       `<style>:host{display:block}button{cursor:pointer;padding:10px 20px;border:none;border-radius:8px;background:#2563eb;color:#fff;font-size:14px}button:hover{background:#1d4ed8}</style>
 <button part="button">${escapeHtml(texts.manageAccountButton)}</button>`,
     );
 
     this.root.querySelector("button")!.addEventListener("click", () => {
-      location.href = target;
+      location.href = `${manageUrl}?code=${encodeURIComponent(code)}&return=${encodeURIComponent(location.href)}`;
     });
   }
 
