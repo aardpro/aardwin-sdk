@@ -3,20 +3,24 @@
 A reference authentication example using [aardwin](https://aard.win) with Next.js 15 App Router.
 Demonstrates register, login, and provider binding (bind) with in-memory session storage.
 
+You only need the two public npm packages — `@aardwin/auth-browser` and
+`@aardwin/auth-server` — plus a `siteId`/`clientSecret` pair from
+[aard.win](https://aard.win). No aardwin source code or self-hosted services required.
+
 ## Prerequisites
 
 - Node.js ≥ 18
-- A running aardwin stack (API + BFF + DB)
-- A test site created in the aardwin console with a `siteId` and `client_secret`
-
-For local development of the aardwin stack itself, see [`sdk/LOCALDEV.md`](../../sdk/LOCALDEV.md).
+- A site registered at [aard.win](https://aard.win), which gives you a `siteId`
+  and `clientSecret`
 
 ## Install
 
 ```bash
 npm install
 cp .env.example .env.local
-# fill in AARDWIN_SITE_ID, AARDWIN_CLIENT_SECRET, and AARDWIN_API_ORIGIN
+# fill in AARDWIN_SITE_ID and AARDWIN_CLIENT_SECRET (and their NEXT_PUBLIC_ mirrors).
+# Leave AARDWIN_API_ORIGIN / NEXT_PUBLIC_AARDWIN_API_ORIGIN BLANK to use the
+# public aardwin api (https://api.aard.win).
 ```
 
 ## Run
@@ -30,7 +34,7 @@ npm run dev
 
 1. `/login` embeds `<aardwin-auth>` (registered by importing `@aardwin/auth-browser`)
 2. User clicks a provider button
-3. BFF handles authorization (OAuth redirect or email verification)
+3. aardwin handles authorization (OAuth redirect or email verification)
 4. Redirects back to `/callback?code=...&state=...`
 5. `/callback` verifies state, calls `exchangeCode()`, mints a session cookie (`sid`)
 6. Server redirects to `/dashboard` which reads the session and displays user info
@@ -56,6 +60,8 @@ Sessions and accounts are lost on server restart.
 
 ## Verification boundary
 
-This example cannot be tested end-to-end without a running aardwin stack and valid
-`siteId`/`client_secret`. Verification is limited to `npm run build` (typecheck + build).
-Fill in `.env.local` and start the stack for a real E2E test.
+This example ships **no automated tests**; verification is limited to
+`npm run build` (typecheck + build). For a real end-to-end run, fill in a valid
+`siteId`/`clientSecret` in `.env.local` (leave the api origin blank to target the
+public `https://api.aard.win`), then run `npm run dev` and complete the flow at
+`/login`.
