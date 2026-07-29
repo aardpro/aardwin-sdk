@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 - 2026-07-29
+
+### Added
+- `AuthUser.email?: string | null` — optional end-user email, mirrored from the
+  `POST /api/oauth/token` envelope. `exchangeCode()` already passed it through at
+  runtime; the type now declares it. Optional field, so non-breaking.
+
 ## 0.1.0 - 2026-07-08
 
 ### BREAKING
