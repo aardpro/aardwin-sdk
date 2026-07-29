@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 export interface SessionUser {
   user_id: string;
   provider: string;
+  email?: string | null;
   nickname?: string;
   avatar?: string;
 }

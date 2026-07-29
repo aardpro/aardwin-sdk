@@ -1,7 +1,8 @@
 # aardwin + Next.js 15 App Router Example
 
 A reference authentication example using [aardwin](https://aard.win) with Next.js 15 App Router.
-Demonstrates register, login, and provider binding (bind) with in-memory session storage.
+Demonstrates register, login, the `<aardwin-account>` account-management UI (bind/unbind
+providers), and in-memory session storage.
 
 You only need the two public npm packages — `@aardwin/auth-browser` and
 `@aardwin/auth-server` — plus a `siteId`/`clientSecret` pair from
@@ -18,9 +19,9 @@ You only need the two public npm packages — `@aardwin/auth-browser` and
 ```bash
 npm install
 cp .env.example .env.local
-# fill in AARDWIN_SITE_ID and AARDWIN_CLIENT_SECRET (and their NEXT_PUBLIC_ mirrors).
-# Leave AARDWIN_API_ORIGIN / NEXT_PUBLIC_AARDWIN_API_ORIGIN BLANK to use the
-# public aardwin api (https://api.aard.win).
+# fill in NEXT_PUBLIC_AARDWIN_SITE_ID (public siteId; read by browser + server) and
+# AARDWIN_CLIENT_SECRET (server-only). The api origin defaults to the public
+# aardwin api (https://api.aard.win) — no override needed.
 ```
 
 ## Run
@@ -37,7 +38,10 @@ npm run dev
 3. aardwin handles authorization (OAuth redirect or email verification)
 4. Redirects back to `/callback?code=...&state=...`
 5. `/callback` verifies state, calls `exchangeCode()`, mints a session cookie (`sid`)
-6. Server redirects to `/dashboard` which reads the session and displays user info
+6. Server redirects to `/dashboard`, which reads the session, displays user info
+   (including `email`), and embeds `<aardwin-account>` — the hosted account-management UI
+   (bind/unbind providers). The dashboard mints a short-lived handoff code server-side via
+   `client.createAccountHandoff({ userId })` and passes `code` + `manageUrl` to the element.
 
 ## Register / Login / Bind
 
@@ -45,8 +49,11 @@ This demo uses in-memory `Map` storage (no database):
 
 - **Register**: first time a `user_id` is seen via `exchangeCode`, an account is created.
 - **Login**: subsequent logins with the same `user_id` are treated as returning users.
-- **Bind**: the same `user_id` logging in via a different provider accumulates providers
-  under one account. There is no separate bind API — this is the demo-level equivalent.
+- **Bind (demo-level)**: the same `user_id` logging in via a different provider accumulates
+  providers under one account in the in-memory store (shown under "Account Status").
+- **Account management (real)**: the dashboard embeds `<aardwin-account>`, aardwin's hosted
+  UI for binding/unbinding providers and editing the profile. It is driven by a one-time
+  handoff code minted server-side (`client.createAccountHandoff({ userId })`).
 
 Sessions and accounts are lost on server restart.
 

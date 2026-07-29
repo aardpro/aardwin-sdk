@@ -11,6 +11,7 @@
 export interface AuthUser {
   user_id: string;
   provider: string;
+  email?: string | null;
   nickname?: string;
   avatar?: string;
 }

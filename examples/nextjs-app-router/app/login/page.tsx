@@ -4,7 +4,6 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 const SITE_ID = process.env.NEXT_PUBLIC_AARDWIN_SITE_ID ?? '';
-const API_ORIGIN = process.env.NEXT_PUBLIC_AARDWIN_API_ORIGIN ?? undefined;
 
 function LoginPageInner() {
   const searchParams = useSearchParams();
@@ -41,7 +40,6 @@ function LoginPageInner() {
       <aardwin-auth
         site-id={SITE_ID}
         i18n={lang}
-        api-origin={API_ORIGIN}
         style={{ display: error ? 'none' : 'block' }}
       />
     </main>

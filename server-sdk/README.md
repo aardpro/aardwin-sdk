@@ -1,10 +1,11 @@
 # @aardwin/auth-server
 
 Framework-agnostic aardwin API client for server-side code. Exchanges one-time OAuth codes for
-end-user identity. Zero runtime dependencies; ESM-only; Node ≥ 18 / Bun.
+end-user identity, and mints account-handoff codes for the browser-side `<aardwin-account>`
+component. Zero runtime dependencies; ESM-only; Node ≥ 18 / Bun.
 
-This package does **one thing** today — `exchangeCode()` — and is built so future methods land
-without changing any existing public signature (see [Roadmap](#roadmap-non-binding)).
+It is built so future methods land without changing any existing public signature
+(see [Roadmap](#10-roadmap-non-binding)).
 
 > Pair it with the browser package `@aardwin/auth-browser` (the `<aardwin-auth>` Web Component) for
 > the full OAuth2 authorization-code flow. This server SDK is the half that lives in your
@@ -40,7 +41,7 @@ const client = createAardwinClient({
 
 // After your callback route receives ?code=...&state=...:
 const user = await client.exchangeCode({ code });
-// user = { user_id, provider, nickname?, avatar? }
+// user = { user_id, provider, email?, nickname?, avatar? }
 
 const session = await createSession(user.user_id); // your own session
 ```
@@ -236,11 +237,12 @@ re-authenticate** (which mints a fresh code via the `<aardwin-auth>` redirect fl
 
 ## 8. Contract reference
 
-This package touches exactly one endpoint:
+This package touches two endpoints:
 
-| Endpoint              | Who calls           | Body                                                       | Success response (`data`)                                  |
-| --------------------- | ------------------- | ---------------------------------------------------------- | ---------------------------------------------------------- |
-| `POST /api/oauth/token` | your backend → api | `{ site_id, code, client_secret }` (JSON, `client_secret_post`) | `{ user_id, provider, nickname?, avatar? }` (envelope `code: 0`) |
+| Endpoint                | Who calls           | Body                                                          | Success response (`data`)                                        |
+| ----------------------- | ------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `POST /api/oauth/token`   | your backend → api | `{ site_id, code, client_secret }` (JSON, `client_secret_post`) | `{ user_id, provider, email?, nickname?, avatar? }` (envelope `code: 0`) |
+| `POST /api/account/handoff` | your backend → api | `{ site_id, user_id, client_secret }` (JSON)                  | `{ code, expires_in, manage_url }` (envelope `code: 0`)           |
 
 The default origin is `https://api.aard.win` (the aardwin **api**, not the bff). For the full
 flow table (provider list, authorize redirect, callback) see the browser SDK's `SDK.md`; for a
@@ -248,7 +250,65 @@ side-by-side of both SDKs' origin-override params, see [technical-architecture.m
 
 ---
 
-## 9. Roadmap (non-binding)
+## 9. Account handoff (`<aardwin-account>`)
+
+`createAccountHandoff()` mints a short-lived one-time code you pass to the browser-only
+`<aardwin-account>` Web Component (shipped by `@aardwin/auth-browser`). That component
+renders aardwin's hosted account-management UI — bind / unbind identity providers, edit
+profile — inside an iframe pointed at the returned `manageUrl`. The code is single-use and
+expires in 60 s, so mint it on demand when the user opens the account page, not at login.
+
+On the client instance (preferred — reuses your `siteId` / `clientSecret`):
+
+```ts
+import { createAardwinClient } from '@aardwin/auth-server';
+
+const client = createAardwinClient({
+  siteId: process.env.NEXT_PUBLIC_AARDWIN_SITE_ID,
+  clientSecret: process.env.AARDWIN_CLIENT_SECRET, // server-only
+});
+
+// Server-side, for the logged-in user:
+const { code, manageUrl, expiresIn } = await client.createAccountHandoff({
+  userId: user.user_id, // from the session you minted at exchangeCode()
+});
+// → pass `code` + `manageUrl` to the browser and render <aardwin-account>.
+```
+
+Then on the page (browser):
+
+```html
+<!-- importing @aardwin/auth-browser registers the <aardwin-account> element -->
+<aardwin-account code="ONE_TIME_CODE" manage-url="https://..."></aardwin-account>
+```
+
+`client.createAccountHandoff({ userId })` falls back to the client's defaults for every
+other field (`siteId`, `clientSecret`, `apiOrigin`, `timeoutMs`, `signal`, `fetch`); only
+`userId` is required.
+
+Standalone (single call) form:
+
+```ts
+import { createAccountHandoff } from '@aardwin/auth-server';
+
+const { code, manageUrl } = await createAccountHandoff({
+  userId,
+  siteId: process.env.NEXT_PUBLIC_AARDWIN_SITE_ID,
+  clientSecret: process.env.AARDWIN_CLIENT_SECRET,
+});
+```
+
+**Notes:**
+
+- This is server-to-server: `client_secret` must never reach the browser. Mint the code in
+  a route handler / server component and hand only `code` + `manageUrl` to the client.
+- The handoff is one-shot like `exchangeCode()` — on failure, re-mint a fresh code rather
+  than retrying the consumed one.
+- Failures throw `AardwinError`; the same [error matrix](#4-error-handling) shape applies.
+
+---
+
+## 10. Roadmap (non-binding)
 
 The following methods are **under consideration**; the public API for the existing methods
 (`createAardwinClient`, `client.exchangeCode`, standalone `exchangeCode`, `AardwinError`) will
