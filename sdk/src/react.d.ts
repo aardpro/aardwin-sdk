@@ -10,6 +10,8 @@
  * 非 React 框架（Preact/Solid/Vue JSX）消费者请自行写 3 行 IntrinsicElements 声明（见 SDK.md）。
  */
 
+export {};
+
 type AardwinAuthI18n = 'zh' | 'en';
 
 interface AardwinAuthAttributes {
