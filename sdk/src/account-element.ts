@@ -47,12 +47,16 @@ export class AardwinAccountElement extends HTMLElement {
       return;
     }
 
-    const src = `${manageUrl}?code=${encodeURIComponent(code)}`;
+    const target = `${manageUrl}?code=${encodeURIComponent(code)}&return=${encodeURIComponent(location.href)}`;
 
     this.mount(
-      `<style>:host{display:block;width:100%}iframe{width:100%;border:0;min-height:400px}</style>
-<iframe src="${escapeAttr(src)}" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>`,
+      `<style>:host{display:block}button{cursor:pointer;padding:10px 20px;border:none;border-radius:8px;background:#2563eb;color:#fff;font-size:14px}button:hover{background:#1d4ed8}</style>
+<button part="button">${escapeHtml(texts.manageAccountButton)}</button>`,
     );
+
+    this.root.querySelector("button")!.addEventListener("click", () => {
+      location.href = target;
+    });
   }
 
   private mount(html: string): void {
@@ -62,9 +66,6 @@ export class AardwinAccountElement extends HTMLElement {
 
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
-}
-function escapeAttr(s: string): string {
-  return escapeHtml(s);
 }
 
 if (!customElements.get("aardwin-account")) {

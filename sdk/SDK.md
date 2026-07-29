@@ -162,6 +162,38 @@ const user = await exchangeCode({
   login CSRF. Keep `client_secret` in env; rotate/revocable via the portal.
 
 
+## Account management (`<aardwin-account>`)
+
+`<aardwin-account>` renders a CTA button ("管理账号" / "Manage account"). Clicking it
+full-page redirects to the account-manage page:
+
+```
+{manage-url}?code=<encoded handoff code>&return=<encoded current page URL>
+```
+
+The account-manage page consumes `?return=` and renders a "返回应用" button so users can
+navigate back to the calling app after managing their identities.
+
+### Usage
+
+```html
+<aardwin-account code="HANDOFF_CODE" manage-url="https://auth.aard.win/account/manage"></aardwin-account>
+```
+
+| 属性 | 必填 | 说明 |
+|------|------|------|
+| `code` | 是 | `createAccountHandoff()` 返回的一次性 handoff code |
+| `manage-url` | 是 | 账号管理页地址（BFF 同源） |
+| `i18n` | 否 | `'zh' \| 'en'`，默认按 `navigator.language` 检测 |
+
+### 错误事件
+
+缺少 `code` 或 `manage-url` 属性时，元素渲染错误文案并派发 `aardwin:account-error` 事件：
+
+```ts
+el.addEventListener('aardwin:account-error', (e) => console.log(e.detail.message));
+```
+
 ## Troubleshooting / 调试
 
 ### 按钮不渲染

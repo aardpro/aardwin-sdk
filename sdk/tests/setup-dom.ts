@@ -15,3 +15,4 @@ g.Event = win.Event;
 g.Node = win.Node;
 g.Element = win.Element;
 g.navigator = win.navigator;
+g.location = win.location;

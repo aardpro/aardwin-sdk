@@ -67,12 +67,12 @@ describe('aardwin-account — missing attributes', () => {
   });
 });
 
-describe('aardwin-account — iframe rendering', () => {
+describe('aardwin-account — button rendering & redirect', () => {
   afterEach(() => {
     document.body.innerHTML = '';
   });
 
-  it('renders iframe with src = manage-url?code=encodedCode', async () => {
+  it('renders a button with manage account label', async () => {
     const el = document.createElement('aardwin-account') as HTMLElement;
     el.setAttribute('code', 'handoff_abc');
     el.setAttribute('manage-url', 'https://auth.aard.win/account/manage');
@@ -80,14 +80,42 @@ describe('aardwin-account — iframe rendering', () => {
     await waitFor(20);
 
     const shadow = (el as unknown as { shadowRoot: ShadowRoot | null }).shadowRoot;
-    const iframe = shadow?.querySelector('iframe');
-    expect(iframe).toBeTruthy();
-    expect(iframe!.getAttribute('src')).toBe(
-      'https://auth.aard.win/account/manage?code=handoff_abc',
-    );
+    const btn = shadow?.querySelector('button');
+    expect(btn).toBeTruthy();
+    expect(btn!.textContent).toMatch(/Manage account|管理账号/);
   });
 
-  it('encodes special characters in code', async () => {
+  it('redirect URL contains ?code= and &return= with encoded current page', async () => {
+    const el = document.createElement('aardwin-account') as HTMLElement;
+    el.setAttribute('code', 'handoff_abc');
+    el.setAttribute('manage-url', 'https://auth.aard.win/account/manage');
+    document.body.appendChild(el);
+    await waitFor(20);
+
+    const shadow = (el as unknown as { shadowRoot: ShadowRoot | null }).shadowRoot;
+    const btn = shadow?.querySelector('button');
+    expect(btn).toBeTruthy();
+
+    let navigatedTo: string | null = null;
+    const origHref = Object.getOwnPropertyDescriptor(window.location.__proto__, 'href')
+      ?? Object.getOwnPropertyDescriptor(Location.prototype, 'href');
+    Object.defineProperty(window.location, 'href', {
+      set(v: string) { navigatedTo = v; },
+      get() { return origHref?.get?.call(window.location) ?? 'http://localhost/'; },
+      configurable: true,
+    });
+
+    btn!.click();
+
+    expect(navigatedTo).toContain('https://auth.aard.win/account/manage?code=handoff_abc&return=');
+    expect(navigatedTo).toMatch(/&return=.+/);
+
+    if (origHref) {
+      Object.defineProperty(window.location, 'href', origHref);
+    }
+  });
+
+  it('encodes special characters in code for redirect URL', async () => {
     const el = document.createElement('aardwin-account') as HTMLElement;
     el.setAttribute('code', 'handoff a&b?c=d');
     el.setAttribute('manage-url', 'https://auth.aard.win/account/manage');
@@ -95,24 +123,24 @@ describe('aardwin-account — iframe rendering', () => {
     await waitFor(20);
 
     const shadow = (el as unknown as { shadowRoot: ShadowRoot | null }).shadowRoot;
-    const iframe = shadow?.querySelector('iframe');
-    expect(iframe!.getAttribute('src')).toBe(
-      'https://auth.aard.win/account/manage?code=handoff%20a%26b%3Fc%3Dd',
-    );
+    const btn = shadow?.querySelector('button');
+    expect(btn).toBeTruthy();
+
+    let navigatedTo: string | null = null;
+    const origHref = Object.getOwnPropertyDescriptor(window.location.__proto__, 'href')
+      ?? Object.getOwnPropertyDescriptor(Location.prototype, 'href');
+    Object.defineProperty(window.location, 'href', {
+      set(v: string) { navigatedTo = v; },
+      get() { return origHref?.get?.call(window.location) ?? 'http://localhost/'; },
+      configurable: true,
+    });
+
+    btn!.click();
+
+    expect(navigatedTo).toContain('?code=handoff%20a%26b%3Fc%3Dd&return=');
+
+    if (origHref) {
+      Object.defineProperty(window.location, 'href', origHref);
+    }
   });
-
-  it('iframe has sandbox attribute with allow-scripts allow-same-origin allow-popups', async () => {
-    const el = document.createElement('aardwin-account') as HTMLElement;
-    el.setAttribute('code', 'handoff_abc');
-    el.setAttribute('manage-url', 'https://auth.aard.win/account/manage');
-    document.body.appendChild(el);
-    await waitFor(20);
-
-    const shadow = (el as unknown as { shadowRoot: ShadowRoot | null }).shadowRoot;
-    const iframe = shadow?.querySelector('iframe');
-    expect(iframe!.getAttribute('sandbox')).toContain('allow-scripts');
-    expect(iframe!.getAttribute('sandbox')).toContain('allow-same-origin');
-    expect(iframe!.getAttribute('sandbox')).toContain('allow-popups');
-  });
-
 });
