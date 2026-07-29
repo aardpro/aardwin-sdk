@@ -26,9 +26,8 @@ export async function GET(req: NextRequest) {
   }
 
   const client = createAardwinClient({
-    siteId: process.env.AARDWIN_SITE_ID!,
+    siteId: process.env.NEXT_PUBLIC_AARDWIN_SITE_ID!,
     clientSecret: process.env.AARDWIN_CLIENT_SECRET!,
-    apiOrigin: process.env.AARDWIN_API_ORIGIN,
   });
 
   try {

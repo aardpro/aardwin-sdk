@@ -1,6 +1,8 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { createAardwinClient } from '@aardwin/auth-server';
 import { getSession, getAccount } from '@/lib/session';
+import AardwinAccount from './aardwin-account';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +16,20 @@ export default async function DashboardPage() {
   if (!user) redirect('/login');
 
   const account = getAccount(user.user_id);
+
+  // Mint a one-time handoff code for the <aardwin-account> account-management UI.
+  // Server-to-server; errors are swallowed so a transient api issue doesn't blank the
+  // whole dashboard — the account manager simply won't render.
+  let accountHandoff: { code: string; manageUrl: string } | null = null;
+  try {
+    const client = createAardwinClient({
+      siteId: process.env.NEXT_PUBLIC_AARDWIN_SITE_ID!,
+      clientSecret: process.env.AARDWIN_CLIENT_SECRET!,
+    });
+    accountHandoff = await client.createAccountHandoff({ userId: user.user_id });
+  } catch {
+    accountHandoff = null;
+  }
 
   return (
     <main style={{ maxWidth: 720, margin: '80px auto', padding: 24, fontFamily: 'system-ui' }}>
@@ -31,6 +47,12 @@ export default async function DashboardPage() {
               <td style={{ padding: '4px 12px 4px 0', fontWeight: 600 }}>provider</td>
               <td>{user.provider}</td>
             </tr>
+            {user.email && (
+              <tr>
+                <td style={{ padding: '4px 12px 4px 0', fontWeight: 600 }}>email</td>
+                <td>{user.email}</td>
+              </tr>
+            )}
             {user.nickname && (
               <tr>
                 <td style={{ padding: '4px 12px 4px 0', fontWeight: 600 }}>nickname</td>
@@ -49,6 +71,16 @@ export default async function DashboardPage() {
           </tbody>
         </table>
       </section>
+
+      {accountHandoff && (
+        <section style={{ marginBottom: 24 }}>
+          <h2>Account Management</h2>
+          <p style={{ color: '#666', fontSize: 13, marginBottom: 12 }}>
+            Bind or unbind identity providers — managed by aardwin.
+          </p>
+          <AardwinAccount code={accountHandoff.code} manageUrl={accountHandoff.manageUrl} />
+        </section>
+      )}
 
       {account && (
         <section style={{ marginBottom: 24 }}>
