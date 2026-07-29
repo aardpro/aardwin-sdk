@@ -18,8 +18,8 @@ export default async function DashboardPage() {
   const account = getAccount(user.user_id);
 
   // Mint a one-time handoff code for the <aardwin-account> account-management UI.
-  // Server-to-server; errors are swallowed so a transient api issue doesn't blank the
-  // whole dashboard — the account manager simply won't render.
+  // Server-to-server; failures are logged but non-fatal so a transient api issue
+  // doesn't blank the whole dashboard — the account manager simply won't render.
   let accountHandoff: { code: string; manageUrl: string } | null = null;
   try {
     const client = createAardwinClient({
@@ -27,7 +27,8 @@ export default async function DashboardPage() {
       clientSecret: process.env.AARDWIN_CLIENT_SECRET!,
     });
     accountHandoff = await client.createAccountHandoff({ userId: user.user_id });
-  } catch {
+  } catch (err) {
+    console.error('createAccountHandoff failed:', err);
     accountHandoff = null;
   }
 
