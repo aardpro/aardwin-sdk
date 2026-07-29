@@ -48,7 +48,7 @@ export class AardwinAccountElement extends HTMLElement {
     }
 
     this.mount(
-      `<style>:host{display:block}button{cursor:pointer;padding:10px 20px;border:none;border-radius:8px;background:#2563eb;color:#fff;font-size:14px}button:hover{background:#1d4ed8}</style>
+      `<style>:host{display:block}button{cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:10px 22px;border:none;border-radius:10px;background:#6366f1;color:#fff;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;font-weight:500;line-height:1.4;letter-spacing:0.01em;box-shadow:0 1px 3px rgba(99,102,241,.3),0 1px 2px rgba(0,0,0,.06);transition:background .15s ease,box-shadow .15s ease,transform .1s ease}button:hover{background:#4f46e5;box-shadow:0 4px 12px rgba(99,102,241,.35),0 1px 3px rgba(0,0,0,.08)}button:active{background:#4338ca;transform:scale(.97)}button:focus-visible{outline:2px solid #6366f1;outline-offset:2px}button:disabled{background:#c7d2fe;color:#6b7280;cursor:not-allowed;box-shadow:none;transform:none}@media(max-width:480px){button{width:100%;justify-content:center;padding:12px 20px;font-size:15px}}</style>
 <button part="button">${escapeHtml(texts.manageAccountButton)}</button>`,
     );
 
