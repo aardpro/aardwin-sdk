@@ -242,7 +242,7 @@ This package touches two endpoints:
 | Endpoint                | Who calls           | Body                                                          | Success response (`data`)                                        |
 | ----------------------- | ------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------- |
 | `POST /api/oauth/token`   | your backend → api | `{ site_id, code, client_secret }` (JSON, `client_secret_post`) | `{ user_id, provider, email?, nickname?, avatar? }` (envelope `code: 0`) |
-| `POST /api/account/handoff` | your backend → api | `{ site_id, user_id, client_secret }` (JSON)                  | `{ code, expires_in, manage_url }` (envelope `code: 0`)           |
+| `POST /api/account/handoff` | your backend → api | `{ site_id, user_id, client_secret }` (JSON)                  | `{ code, expires_in }` (envelope `code: 0`)           |
 
 The default origin is `https://api.aard.win` (the aardwin **api**, not the bff). For the full
 flow table (provider list, authorize redirect, callback) see the browser SDK's `SDK.md`; for a
@@ -253,10 +253,13 @@ side-by-side of both SDKs' origin-override params, see [technical-architecture.m
 ## 9. Account handoff (`<aardwin-account>`)
 
 `createAccountHandoff()` mints a short-lived one-time code you pass to the browser-only
-`<aardwin-account>` Web Component (shipped by `@aardwin/auth-browser`). That component
-renders aardwin's hosted account-management UI — bind / unbind identity providers, edit
-profile — inside an iframe pointed at the returned `manageUrl`. The code is single-use and
-expires in 60 s, so mint it on demand when the user opens the account page, not at login.
+`<aardwin-account>` Web Component (shipped by `@aardwin/auth-browser`). The component is
+self-contained and renders inline (Shadow DOM) — list bound identities, unbind them, and
+render bind buttons for the remaining providers, the same model as `<aardwin-auth>`; there
+is no hosted manage page and no `manageUrl`. When the user binds a provider the component
+sends the page's own URL as `return_url` and the OAuth callback returns there. The code is
+single-use and expires in 60 s, so mint it on demand when the user opens the account page,
+not at login.
 
 On the client instance (preferred — reuses your `siteId` / `clientSecret`):
 
@@ -269,17 +272,17 @@ const client = createAardwinClient({
 });
 
 // Server-side, for the logged-in user:
-const { code, manageUrl, expiresIn } = await client.createAccountHandoff({
+const { code, expiresIn } = await client.createAccountHandoff({
   userId: user.user_id, // from the session you minted at exchangeCode()
 });
-// → pass `code` + `manageUrl` to the browser and render <aardwin-account>.
+// → pass `code` (and your siteId) to the browser and render <aardwin-account site-id code>.
 ```
 
 Then on the page (browser):
 
 ```html
 <!-- importing @aardwin/auth-browser registers the <aardwin-account> element -->
-<aardwin-account code="ONE_TIME_CODE" manage-url="https://..."></aardwin-account>
+<aardwin-account site-id="YOUR_SITE_ID" code="ONE_TIME_CODE"></aardwin-account>
 ```
 
 `client.createAccountHandoff({ userId })` falls back to the client's defaults for every
@@ -291,7 +294,7 @@ Standalone (single call) form:
 ```ts
 import { createAccountHandoff } from '@aardwin/auth-server';
 
-const { code, manageUrl } = await createAccountHandoff({
+const { code, expiresIn } = await createAccountHandoff({
   userId,
   siteId: process.env.NEXT_PUBLIC_AARDWIN_SITE_ID,
   clientSecret: process.env.AARDWIN_CLIENT_SECRET,
@@ -301,7 +304,7 @@ const { code, manageUrl } = await createAccountHandoff({
 **Notes:**
 
 - This is server-to-server: `client_secret` must never reach the browser. Mint the code in
-  a route handler / server component and hand only `code` + `manageUrl` to the client.
+  a route handler / server component and hand only `code` to the client.
 - The handoff is one-shot like `exchangeCode()` — on failure, re-mint a fresh code rather
   than retrying the consumed one.
 - Failures throw `AardwinError`; the same [error matrix](#4-error-handling) shape applies.

@@ -39,9 +39,9 @@ npm run dev
 4. Redirects back to `/callback?code=...&state=...`
 5. `/callback` verifies state, calls `exchangeCode()`, mints a session cookie (`sid`)
 6. Server redirects to `/dashboard`, which reads the session, displays user info
-   (including `email`), and embeds `<aardwin-account>` — the hosted account-management UI
+   (including `email`), and embeds `<aardwin-account>` — the inline account-management UI
    (bind/unbind providers). The dashboard mints a short-lived handoff code server-side via
-   `client.createAccountHandoff({ userId })` and passes `code` + `manageUrl` to the element.
+   `client.createAccountHandoff({ userId })` and passes `code` (and the public `siteId`) to the element.
 
 ## Register / Login / Bind
 
@@ -51,8 +51,8 @@ This demo uses in-memory `Map` storage (no database):
 - **Login**: subsequent logins with the same `user_id` are treated as returning users.
 - **Bind (demo-level)**: the same `user_id` logging in via a different provider accumulates
   providers under one account in the in-memory store (shown under "Account Status").
-- **Account management (real)**: the dashboard embeds `<aardwin-account>`, aardwin's hosted
-  UI for binding/unbinding providers and editing the profile. It is driven by a one-time
+- **Account management (real)**: the dashboard embeds `<aardwin-account>`, aardwin's inline
+  UI for binding/unbinding identity providers. It is driven by a one-time
   handoff code minted server-side (`client.createAccountHandoff({ userId })`).
 
 Sessions and accounts are lost on server restart.
