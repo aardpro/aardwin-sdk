@@ -69,7 +69,86 @@ function isUnauthorized(e: unknown): boolean {
   return e instanceof AccountHttpError && e.status === 401;
 }
 
-const STYLES = `:host{display:block;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;color:#24292f}.account{display:flex;flex-direction:column;gap:14px;width:100%;box-sizing:border-box}.group-title{font-size:13px;font-weight:600;color:#57606a}.stub{padding:8px;color:#666}.stub.err{color:#b91c1c}.banner{padding:8px 12px;border-radius:8px;font-size:13px}.banner.ok{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}.banner.err{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}.row{display:flex;gap:8px;font-size:14px;align-items:baseline}.row-label{color:#57606a;min-width:64px}.identities{display:flex;flex-direction:column;gap:8px}.identity{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #d0d7de;border-radius:8px;background:#fff}.i-icon{display:inline-flex;flex-shrink:0;color:#57606a}.i-main{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}.i-label{font-size:14px;font-weight:500;word-break:break-word}.i-nick,.i-date{font-size:12px;color:#6e7781;word-break:break-word}.unbind{cursor:pointer;padding:5px 10px;border:1px solid #d0d7de;border-radius:6px;background:#fff;color:#57606a;font-size:12px;font-family:inherit}.unbind:hover{background:#f6f8fa;border-color:#afb8c1}.unbind:disabled{opacity:.6;cursor:not-allowed}.empty{padding:8px;color:#6e7781;font-size:13px}.bind-buttons{display:flex;flex-direction:column;gap:10px}.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;box-sizing:border-box;padding:11px 16px;border:1px solid #d0d7de;border-radius:8px;background:#fff;color:#24292f;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;transition:background-color .15s ease,border-color .15s ease}.btn svg{flex-shrink:0}.btn:hover{background:#f6f8fa;border-color:#afb8c1}.btn:disabled{opacity:.6;cursor:not-allowed}`;
+// Shadow-DOM scoped 设计系统（延续 <aardwin-auth> 的中性、克制、专业感）。
+// 设计 token 集中在 :host；语义反馈色取自 Primer 的 .emphasis 变体，保证 banner 文本在
+// 浅底上达 WCAG AA。组件渲染自带浅色表面，因此嵌入深色宿主底也可读。
+const STYLES = `
+:host{
+  display:block;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+  color:#24292f;line-height:1.5;
+  --aa-text:#24292f;--aa-muted:#57606a;--aa-faint:#59636e;
+  --aa-border:#d0d7de;--aa-border-strong:#afb8c1;
+  --aa-surface:#ffffff;--aa-surface-2:#f6f8fa;
+  --aa-radius:8px;--aa-radius-sm:6px;--aa-focus:#0969da;
+  --aa-ok-fg:#1a7f37;--aa-ok-bg:#dafbe1;--aa-ok-bd:#aceebb;
+  --aa-err-fg:#82071e;--aa-err-bg:#ffebe9;--aa-err-bd:#ffcecb;
+  --aa-warn-fg:#9a6700;--aa-warn-bg:#fff8c5;--aa-warn-bd:#f4ddb1;
+  --aa-info-fg:#0550ae;--aa-info-bg:#ddf4ff;--aa-info-bd:#54aeff;
+}
+*,*::before,*::after{box-sizing:border-box;}
+
+.account{display:flex;flex-direction:column;gap:14px;width:100%;}
+.group-title{font-size:12px;font-weight:600;color:var(--aa-muted);letter-spacing:.02em;margin:0;}
+
+/* 账号级 key/value（顶层 email） */
+.row{display:flex;gap:8px;align-items:baseline;font-size:14px;}
+.row-label{color:var(--aa-muted);font-size:13px;min-width:64px;}
+.row-value{color:var(--aa-text);word-break:break-word;min-width:0;}
+
+/* 加载 / 致命态（spinner 仅 loading；err 隐藏 spinner） */
+.stub{display:flex;align-items:center;gap:8px;padding:8px 4px;font-size:13px;color:var(--aa-muted);}
+.stub::before{content:"";width:14px;height:14px;border-radius:50%;border:2px solid var(--aa-border);border-top-color:var(--aa-border-strong);animation:aa-spin .7s linear infinite;flex-shrink:0;}
+.stub.err{color:var(--aa-err-fg);}
+.stub.err::before{display:none;}
+@keyframes aa-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.stub::before{animation:none;}}
+
+/* 内联反馈条（成功 / 失败 / 警告 / 信息）——克制、非原生 alert；::before 为语义图标 */
+.banner{display:flex;align-items:flex-start;gap:8px;padding:9px 12px;border-radius:var(--aa-radius);font-size:13px;line-height:1.45;word-break:break-word;border:1px solid transparent;}
+.banner::before{flex-shrink:0;font-weight:700;line-height:1.45;}
+.banner.ok{background:var(--aa-ok-bg);color:var(--aa-ok-fg);border-color:var(--aa-ok-bd);}
+.banner.ok::before{content:"✓";}
+.banner.err{background:var(--aa-err-bg);color:var(--aa-err-fg);border-color:var(--aa-err-bd);}
+.banner.err::before{content:"✕";}
+.banner.warn{background:var(--aa-warn-bg);color:var(--aa-warn-fg);border-color:var(--aa-warn-bd);}
+.banner.warn::before{content:"!";}
+.banner.info{background:var(--aa-info-bg);color:var(--aa-info-fg);border-color:var(--aa-info-bd);}
+.banner.info::before{content:"i";font-style:italic;}
+
+/* 已绑 identity 列表 */
+.identities{display:flex;flex-direction:column;gap:8px;}
+.identity{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--aa-border);border-radius:var(--aa-radius);background:var(--aa-surface);transition:background-color .15s ease,border-color .15s ease;}
+.identity:hover{background:var(--aa-surface-2);border-color:var(--aa-border-strong);}
+.i-icon{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:32px;height:32px;border-radius:var(--aa-radius-sm);background:var(--aa-surface-2);color:var(--aa-muted);}
+.i-main{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;}
+.i-label{font-size:14px;font-weight:600;color:var(--aa-text);word-break:break-word;}
+.i-nick,.i-date{font-size:12px;color:var(--aa-faint);word-break:break-word;}
+
+/* 解绑——幽灵动作，悬停转危险色（克制但明确） */
+.unbind{cursor:pointer;flex-shrink:0;padding:5px 10px;border:1px solid transparent;border-radius:var(--aa-radius-sm);background:transparent;color:var(--aa-muted);font-size:12px;font-weight:500;font-family:inherit;line-height:1.4;transition:background-color .15s ease,color .15s ease,border-color .15s ease,box-shadow .15s ease;}
+.unbind:hover{color:var(--aa-err-fg);background:var(--aa-err-bg);border-color:var(--aa-err-bd);}
+
+/* 空态 */
+.empty{padding:16px 12px;border:1px dashed var(--aa-border);border-radius:var(--aa-radius);color:var(--aa-faint);font-size:13px;text-align:center;background:var(--aa-surface-2);}
+
+/* 绑定按钮——与 <aardwin-auth> 同美学（描边 / 16px 图标 / 悬停） */
+.bind-group{display:flex;flex-direction:column;gap:8px;}
+.bind-buttons{display:flex;flex-direction:column;gap:10px;}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;box-sizing:border-box;padding:11px 16px;border:1px solid var(--aa-border);border-radius:var(--aa-radius);background:var(--aa-surface);color:var(--aa-text);font-size:14px;font-weight:500;font-family:inherit;line-height:1.2;cursor:pointer;transition:background-color .15s ease,border-color .15s ease,box-shadow .15s ease;}
+.btn svg{flex-shrink:0;}
+.btn:hover{background:var(--aa-surface-2);border-color:var(--aa-border-strong);}
+
+/* 键盘聚焦环（aardwin-auth 未覆盖，本组件补齐可访问性） */
+.btn:focus-visible,.unbind:focus-visible{outline:none;border-color:var(--aa-focus);box-shadow:0 0 0 3px rgba(9,105,218,.35);}
+
+/* 禁用（请求进行中 / 已绑态） */
+.btn:disabled,.unbind:disabled{opacity:.55;cursor:not-allowed;}
+.btn:disabled:hover,.unbind:disabled:hover{background:var(--aa-surface);border-color:var(--aa-border);color:var(--aa-muted);}
+
+/* 窄屏：行内边距与图标收紧，保持单列不溢出 */
+@media(max-width:420px){.identity{gap:10px;padding:10px;}.i-icon{width:28px;height:28px;}}
+`;
 
 export class AardwinAccountElement extends HTMLElement {
   private readonly root: ShadowRoot;
@@ -120,18 +199,18 @@ export class AardwinAccountElement extends HTMLElement {
     let token = this.readToken();
     if (!token) {
       if (!code) {
-        this.mount(`<div class="stub err">${escapeHtml(texts.missingAccountCode)}</div>`);
+        this.mount(`<div class="stub err" role="alert">${escapeHtml(texts.missingAccountCode)}</div>`);
         this.emitError(texts.missingAccountCode, "session");
         return;
       }
-      this.mount(`<div class="stub">${escapeHtml(texts.accountLoading)}</div>`);
+      this.mount(`<div class="stub" role="status">${escapeHtml(texts.accountLoading)}</div>`);
       try {
         token = await this.ensureSession(apiOrigin, code);
         this.writeToken(token);
       } catch {
         if (seq !== this.#renderSeq) return;
         this.emitError(texts.accountError, "session");
-        this.mount(`<div class="stub err">${escapeHtml(texts.accountError)}</div>`);
+        this.mount(`<div class="stub err" role="alert">${escapeHtml(texts.accountError)}</div>`);
         return;
       }
     }
@@ -140,7 +219,7 @@ export class AardwinAccountElement extends HTMLElement {
     // 2) 绑定回调 confirm：URL 带 ?pending & ?provider → confirm 后清 URL + 带反馈重载。
     const cb = this.readPendingCallback();
     if (cb) {
-      this.mount(`<div class="stub">${escapeHtml(texts.accountLoading)}</div>`);
+      this.mount(`<div class="stub" role="status">${escapeHtml(texts.accountLoading)}</div>`);
       let feedback: Feedback;
       try {
         await this.confirmLink(apiOrigin, token, cb.provider, cb.pending);
@@ -169,7 +248,7 @@ export class AardwinAccountElement extends HTMLElement {
     seq: number,
     feedback: Feedback | null,
   ): Promise<void> {
-    this.mount(`<div class="stub">${escapeHtml(texts.accountLoading)}</div>`);
+    this.mount(`<div class="stub" role="status">${escapeHtml(texts.accountLoading)}</div>`);
 
     let identities: Identity[] = [];
     let email: string | undefined;
@@ -182,11 +261,11 @@ export class AardwinAccountElement extends HTMLElement {
       if (isUnauthorized(e)) {
         this.writeToken(null);
         this.emitError(texts.sessionExpired, "identities");
-        this.mount(`<div class="stub err">${escapeHtml(texts.sessionExpired)}</div>`);
+        this.mount(`<div class="stub err" role="alert">${escapeHtml(texts.sessionExpired)}</div>`);
         return;
       }
       this.emitError(texts.accountError, "identities");
-      this.mount(`<div class="stub err">${escapeHtml(texts.accountError)}</div>`);
+      this.mount(`<div class="stub err" role="alert">${escapeHtml(texts.accountError)}</div>`);
       return;
     }
     if (seq !== this.#renderSeq) return;
@@ -220,7 +299,7 @@ export class AardwinAccountElement extends HTMLElement {
     const sep = texts.lang === "zh" ? "" : " ";
 
     const banner = feedback
-      ? `<div class="banner ${feedback.ok ? "ok" : "err"}">${escapeHtml(feedback.text)}</div>`
+      ? `<div class="banner ${feedback.ok ? "ok" : "err"}" role="${feedback.ok ? "status" : "alert"}">${escapeHtml(feedback.text)}</div>`
       : "";
     const emailRow = email
       ? `<div class="row"><span class="row-label">${escapeHtml(texts.emailLabel)}</span><span class="row-value">${escapeHtml(email)}</span></div>`
@@ -242,17 +321,20 @@ export class AardwinAccountElement extends HTMLElement {
           .join("")}</div></div>`;
 
     this.mount(
-      `<style>${STYLES}</style><div class="account">${banner}${emailRow}${title}<div class="identities">${idsHtml}</div>${bindHtml}</div>`,
+      `<div class="account">${banner}${emailRow}${title}<div class="identities">${idsHtml}</div>${bindHtml}</div>`,
     );
   }
 
   private identityRow(i: Identity, texts: ReturnType<typeof resolveSdkTexts>): string {
     const label = texts.labels[i.provider] ?? i.provider;
     const icon = PROVIDER_ICONS[i.provider] ?? "";
+    const sep = texts.lang === "zh" ? "" : " ";
+    // 可见文案保持简短；aria-label 带 provider 名，让屏幕阅读器念出「解绑 GitHub」。
+    const unbindAria = `${texts.unbindLabel}${sep}${label}`;
     // PII 白名单：provider / nickname / linkedAt（+ identityId 仅作 data 属性供解绑用，不展示）。
     const nick = i.nickname ? `<span class="i-nick">${escapeHtml(i.nickname)}</span>` : "";
     const date = i.linkedAt ? `<span class="i-date">${escapeHtml(texts.linkedAtPrefix + i.linkedAt)}</span>` : "";
-    return `<div class="identity" data-identity-id="${escapeAttr(i.identityId)}" data-provider="${escapeAttr(i.provider)}"><span class="i-icon">${icon}</span><span class="i-main"><span class="i-label">${escapeHtml(label)}</span>${nick}${date}</span><button class="unbind" data-unbind="${escapeAttr(i.identityId)}">${escapeHtml(texts.unbindLabel)}</button></div>`;
+    return `<div class="identity" data-identity-id="${escapeAttr(i.identityId)}" data-provider="${escapeAttr(i.provider)}"><span class="i-icon">${icon}</span><span class="i-main"><span class="i-label">${escapeHtml(label)}</span>${nick}${date}</span><button class="unbind" data-unbind="${escapeAttr(i.identityId)}" aria-label="${escapeAttr(unbindAria)}">${escapeHtml(texts.unbindLabel)}</button></div>`;
   }
 
   private bindActions(
@@ -313,6 +395,7 @@ export class AardwinAccountElement extends HTMLElement {
     account.querySelector(".banner")?.remove();
     const div = document.createElement("div");
     div.className = `banner ${feedback.ok ? "ok" : "err"}`;
+    div.setAttribute("role", feedback.ok ? "status" : "alert");
     // textContent 赋值天然防 XSS（无需 escapeHtml）。
     div.textContent = feedback.text;
     account.insertBefore(div, account.firstChild);
@@ -470,7 +553,9 @@ export class AardwinAccountElement extends HTMLElement {
   }
 
   private mount(html: string): void {
-    this.root.innerHTML = html;
+    // 每次挂载都注入 scoped 样式：loading/error 等「非终态」也走 mount，
+    // 确保加载 spinner、致命错误态同样有品味（旧实现仅在终态注入 <style>）。
+    this.root.innerHTML = `<style>${STYLES}</style>${html}`;
   }
 }
 
