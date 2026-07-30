@@ -164,34 +164,58 @@ const user = await exchangeCode({
 
 ## Account management (`<aardwin-account>`)
 
-`<aardwin-account>` renders a CTA button ("管理账号" / "Manage account"). Clicking it
-full-page redirects to the account-manage page:
+`<aardwin-account>` is a **self-contained inline Web Component** (it mirrors `<aardwin-auth>`:
+Shadow DOM, same provider fetch / sort / icon / HTML-escaping machinery). There is **no
+hosted manage page and no `manage-url`** — identity management renders inline on whatever
+page hosts the tag.
 
-```
-{manage-url}?code=<encoded handoff code>&return=<encoded current page URL>
-```
+The required `code` is a one-time handoff code minted **server-side** via
+`createAccountHandoff()` (see `server-sdk/README.md` §9). Mint it on demand when the user
+opens the account page — it is single-use and expires in 60 s.
 
-The account-manage page consumes `?return=` and renders a "返回应用" button so users can
-navigate back to the calling app after managing their identities.
+On mount the component:
+
+1. Resolves an access token: reuses a cached token in `sessionStorage`, else (no token + a
+   fresh `code`) calls `POST /api/account/session {code}` and stores the returned
+   `access_token`.
+2. If the page URL carries `?pending` + `?provider` (returning from an OAuth provider),
+   calls `POST /api/account/link/:provider/confirm {pending_token}` (Bearer), clears the
+   URL params, and re-renders with a success/failure banner.
+3. Otherwise renders the current state: `GET /api/account/identities` (Bearer) → bound
+   identity list (each with an **解绑 / Unbind** button), plus bind buttons for the
+   remaining site providers (excluding `email` and already-bound providers).
+
+- **Bind**: `POST /api/account/link/:provider {return_url: <this page's URL>}` (Bearer) →
+  full-page redirect to the provider's authorize endpoint. The OAuth callback returns to
+  **this same page** with `?pending=&provider=`, handled by step 2 — so the user lands back
+  where they started, no separate "返回应用" page needed.
+- **Unbind**: `DELETE /api/account/identities/:identityId` (Bearer), after a native
+  `confirm()` prompt.
+- **Token expired (401)**: the cached token is cleared and a "session expired, refresh the
+  page" message is shown (re-mint the handoff on the next dashboard load).
 
 ### Usage
 
 ```html
-<aardwin-account code="HANDOFF_CODE" manage-url="https://auth.aard.win/account/manage"></aardwin-account>
+<!-- importing @aardwin/auth-browser registers the <aardwin-account> element -->
+<aardwin-account site-id="YOUR_SITE_ID" code="ONE_TIME_HANDOFF_CODE"></aardwin-account>
 ```
 
 | 属性 | 必填 | 说明 |
 |------|------|------|
-| `code` | 是 | `createAccountHandoff()` 返回的一次性 handoff code |
-| `manage-url` | 是 | 账号管理页地址（BFF 同源） |
+| `site-id` | 是 | 站点 ID；决定可绑 provider（拉 `GET /api/providers?site_id=`）。缺省时不报错，只是不渲染绑定按钮 |
+| `code` | 是 | `createAccountHandoff()` 返回的一次性 handoff code；用于建会话。sessionStorage 已有 token 时不消费 |
 | `i18n` | 否 | `'zh' \| 'en'`，默认按 `navigator.language` 检测 |
+| `api-origin` | 否 | 覆盖 API 入口，默认 `API_ORIGIN`（本地开发指向 `http://localhost:4000`） |
 
 ### 错误事件
 
-缺少 `code` 或 `manage-url` 属性时，元素渲染错误文案并派发 `aardwin:account-error` 事件：
+无缓存 token 且缺少 `code` 时，元素渲染错误文案并派发 `aardwin:account-error` 事件
+（`bubbles: true, composed: true`，可穿透 Shadow DOM 到宿主页）。建会话 / 拉取 / 绑定 /
+解绑失败、以及 token 过期（401）时也会派发同一事件，`detail.phase` 区分来源：
 
 ```ts
-el.addEventListener('aardwin:account-error', (e) => console.log(e.detail.message));
+el.addEventListener('aardwin:account-error', (e) => console.log(e.detail.phase, e.detail.message));
 ```
 
 ## Troubleshooting / 调试
