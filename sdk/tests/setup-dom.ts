@@ -16,3 +16,9 @@ g.Node = win.Node;
 g.Element = win.Element;
 g.navigator = win.navigator;
 g.location = win.location;
+// account-element 依赖：会话 token 存储 + history.replaceState（清 ?pending 回调参数）。
+g.sessionStorage = win.sessionStorage;
+g.localStorage = win.localStorage;
+g.history = win.history;
+// confirm()：happy-dom 20 无原生 confirm，给安全默认 deny；测试按需覆盖为 () => true。
+g.confirm = () => false;

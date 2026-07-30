@@ -17,10 +17,11 @@ export default async function DashboardPage() {
 
   const account = getAccount(user.user_id);
 
-  // Mint a one-time handoff code for the <aardwin-account> account-management UI.
+  // Mint a one-time handoff code for the <aardwin-account> inline component.
   // Server-to-server; failures are logged but non-fatal so a transient api issue
   // doesn't blank the whole dashboard — the account manager simply won't render.
-  let accountHandoff: { code: string; manageUrl: string } | null = null;
+  // Track A 后端已去掉 manage_url：handoff 只返回 {code, expiresIn}（组件自包含渲染）。
+  let accountHandoff: { code: string; expiresIn: number } | null = null;
   try {
     const client = createAardwinClient({
       siteId: process.env.NEXT_PUBLIC_AARDWIN_SITE_ID!,
@@ -79,7 +80,10 @@ export default async function DashboardPage() {
           <p style={{ color: '#666', fontSize: 13, marginBottom: 12 }}>
             Bind or unbind identity providers — managed by aardwin.
           </p>
-          <AardwinAccount code={accountHandoff.code} manageUrl={accountHandoff.manageUrl} />
+          <AardwinAccount
+            siteId={process.env.NEXT_PUBLIC_AARDWIN_SITE_ID!}
+            code={accountHandoff.code}
+          />
         </section>
       )}
 

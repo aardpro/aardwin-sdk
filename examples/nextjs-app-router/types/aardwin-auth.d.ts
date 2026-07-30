@@ -11,10 +11,12 @@ interface AardwinAuthAttributes {
 }
 
 interface AardwinAccountAttributes {
+  /** Site id — drives which providers can be bound (GET /api/providers?site_id=). */
+  'site-id': string;
   /** One-time handoff code from server-side createAccountHandoff(). */
   code: string;
-  /** Hosted account-management URL returned alongside the code. */
-  'manage-url': string;
+  /** Optional api origin override (defaults to the SDK's API_ORIGIN). */
+  'api-origin'?: string;
   i18n?: AardwinAuthI18n;
   style?: string | CSSProperties;
 }
