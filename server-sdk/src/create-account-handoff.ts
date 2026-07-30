@@ -18,7 +18,6 @@ export interface CreateAccountHandoffInput {
 export interface AccountHandoffOutput {
   code: string;
   expiresIn: number;
-  manageUrl: string;
 }
 
 export async function createAccountHandoff(
@@ -37,9 +36,9 @@ export async function createAccountHandoff(
     fetchImpl,
   });
 
+  // AAR-224：不再回 manageUrl（宿主页由嵌入式组件自带）。
   return {
     code: data.code,
     expiresIn: data.expires_in,
-    manageUrl: data.manage_url,
   };
 }

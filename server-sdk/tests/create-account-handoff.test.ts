@@ -42,7 +42,6 @@ const BASE_INPUT = {
 const SUCCESS_DATA: AccountHandoffResult = {
   code: 'handoff_code_xyz',
   expires_in: 60,
-  manage_url: 'https://auth.aard.win/account/manage',
 };
 
 describe('createAccountHandoff — success', () => {
@@ -52,7 +51,6 @@ describe('createAccountHandoff — success', () => {
     expect(result).toEqual({
       code: 'handoff_code_xyz',
       expiresIn: 60,
-      manageUrl: 'https://auth.aard.win/account/manage',
     });
   });
 
@@ -116,7 +114,6 @@ describe('createAccountHandoff via client', () => {
     expect(result).toEqual({
       code: 'handoff_code_xyz',
       expiresIn: 60,
-      manageUrl: 'https://auth.aard.win/account/manage',
     });
     expect(captured.body).toEqual({
       site_id: 'CLIENT_SITE',

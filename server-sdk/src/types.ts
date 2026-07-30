@@ -19,9 +19,11 @@ export interface AuthUser {
 /**
  * Result returned by `createAccountHandoff()`. Mirrors the `POST /api/account/handoff`
  * envelope `data` field. `expires_in` is the TTL in seconds (always 60).
+ *
+ * AAR-224：响应不再含 `manage_url`——宿主页由嵌入式 `<aardwin-account>` 组件自带，
+ * handoff 只回一次性 code（组件凭 code 换 session）。
  */
 export interface AccountHandoffResult {
   code: string;
   expires_in: number;
-  manage_url: string;
 }
