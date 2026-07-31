@@ -69,27 +69,28 @@ function isUnauthorized(e: unknown): boolean {
   return e instanceof AccountHttpError && e.status === 401;
 }
 
-// Shadow-DOM scoped 设计系统（延续 <aardwin-auth> 的中性、克制、专业感）。
-// 设计 token 集中在 :host；语义反馈色取自 Primer 的 .emphasis 变体，保证 banner 文本在
-// 浅底上达 WCAG AA。组件渲染自带浅色表面，因此嵌入深色宿主底也可读。
+// Shadow-DOM scoped 设计系统（与 <aardwin-auth> 同源 token —— 品牌化中性面）。
+// 设计 token 集中在 :host（宿主可覆盖 --aa-*）；语义反馈色取高对比 tint，
+// 保证 banner 文本在浅底上达 WCAG AA。组件渲染自带浅色表面，嵌入深色宿主底也可读。
 const STYLES = `
 :host{
   display:block;
   font-family:system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
-  color:#24292f;line-height:1.5;
-  --aa-text:#24292f;--aa-muted:#57606a;--aa-faint:#59636e;
-  --aa-border:#d0d7de;--aa-border-strong:#afb8c1;
-  --aa-surface:#ffffff;--aa-surface-2:#f6f8fa;
-  --aa-radius:8px;--aa-radius-sm:6px;--aa-focus:#0969da;
-  --aa-ok-fg:#1a7f37;--aa-ok-bg:#dafbe1;--aa-ok-bd:#aceebb;
-  --aa-err-fg:#82071e;--aa-err-bg:#ffebe9;--aa-err-bd:#ffcecb;
+  color:#16181d;line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  --aa-text:#16181d;--aa-muted:#5b616e;--aa-faint:#8a919e;
+  --aa-border:#e3e6ea;--aa-border-strong:#c8cdd4;
+  --aa-surface:#ffffff;--aa-surface-2:#f7f8fa;
+  --aa-radius:10px;--aa-radius-sm:8px;--aa-focus:rgba(5,150,105,.30);--aa-accent:#059669;
+  --aa-ok-fg:#1a7f37;--aa-ok-bg:#eaf8ef;--aa-ok-bd:#b8e6c8;
+  --aa-err-fg:#b42318;--aa-err-bg:#fdf3f2;--aa-err-bd:#f1d5d3;
   --aa-warn-fg:#9a6700;--aa-warn-bg:#fff8c5;--aa-warn-bd:#f4ddb1;
   --aa-info-fg:#0550ae;--aa-info-bg:#ddf4ff;--aa-info-bd:#54aeff;
 }
 *,*::before,*::after{box-sizing:border-box;}
 
 .account{display:flex;flex-direction:column;gap:14px;width:100%;}
-.group-title{font-size:12px;font-weight:600;color:var(--aa-muted);letter-spacing:.02em;margin:0;}
+.group-title{font-size:11px;font-weight:600;color:var(--aa-muted);letter-spacing:.05em;margin:0;}
 
 /* 账号级 key/value（顶层 email） */
 .row{display:flex;gap:8px;align-items:baseline;font-size:14px;}
@@ -97,58 +98,65 @@ const STYLES = `
 .row-value{color:var(--aa-text);word-break:break-word;min-width:0;}
 
 /* 加载 / 致命态（spinner 仅 loading；err 隐藏 spinner） */
-.stub{display:flex;align-items:center;gap:8px;padding:8px 4px;font-size:13px;color:var(--aa-muted);}
-.stub::before{content:"";width:14px;height:14px;border-radius:50%;border:2px solid var(--aa-border);border-top-color:var(--aa-border-strong);animation:aa-spin .7s linear infinite;flex-shrink:0;}
+.stub{display:flex;align-items:center;gap:9px;padding:8px 4px;font-size:13px;color:var(--aa-muted);}
+.stub::before{content:"";width:14px;height:14px;border-radius:50%;border:2px solid var(--aa-border);border-top-color:var(--aa-accent);animation:aa-spin .7s linear infinite;flex-shrink:0;}
 .stub.err{color:var(--aa-err-fg);}
 .stub.err::before{display:none;}
 @keyframes aa-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.stub::before{animation:none;}}
 
-/* 内联反馈条（成功 / 失败 / 警告 / 信息）——克制、非原生 alert；::before 为语义图标 */
-.banner{display:flex;align-items:flex-start;gap:8px;padding:9px 12px;border-radius:var(--aa-radius);font-size:13px;line-height:1.45;word-break:break-word;border:1px solid transparent;}
-.banner::before{flex-shrink:0;font-weight:700;line-height:1.45;}
+/* 内联反馈条（成功 / 失败 / 警告 / 信息）——克制、非原生 alert；图标为内联 SVG */
+.banner{display:flex;align-items:flex-start;gap:9px;padding:10px 13px;border-radius:var(--aa-radius);font-size:13px;line-height:1.45;word-break:break-word;border:1px solid transparent;}
+.banner svg{flex-shrink:0;margin-top:1px;}
 .banner.ok{background:var(--aa-ok-bg);color:var(--aa-ok-fg);border-color:var(--aa-ok-bd);}
-.banner.ok::before{content:"✓";}
 .banner.err{background:var(--aa-err-bg);color:var(--aa-err-fg);border-color:var(--aa-err-bd);}
-.banner.err::before{content:"✕";}
 .banner.warn{background:var(--aa-warn-bg);color:var(--aa-warn-fg);border-color:var(--aa-warn-bd);}
-.banner.warn::before{content:"!";}
 .banner.info{background:var(--aa-info-bg);color:var(--aa-info-fg);border-color:var(--aa-info-bd);}
-.banner.info::before{content:"i";font-style:italic;}
 
-/* 已绑 identity 列表 */
-.identities{display:flex;flex-direction:column;gap:8px;}
-.identity{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--aa-border);border-radius:var(--aa-radius);background:var(--aa-surface);transition:background-color .15s ease,border-color .15s ease;}
-.identity:hover{background:var(--aa-surface-2);border-color:var(--aa-border-strong);}
-.i-icon{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:32px;height:32px;border-radius:var(--aa-radius-sm);background:var(--aa-surface-2);color:var(--aa-muted);}
+/* 已绑 identity 列表——渐次入场（--i 逐项 50ms） */
+.identities{display:flex;flex-direction:column;gap:9px;}
+.identity{display:flex;align-items:center;gap:12px;padding:13px;border:1px solid var(--aa-border);border-radius:var(--aa-radius);background:var(--aa-surface);transition:background-color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .1s ease;animation:aa-rise .45s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(var(--i,0) * 50ms);}
+.identity:hover{background:var(--aa-surface-2);border-color:var(--aa-border-strong);box-shadow:0 1px 2px rgba(16,24,40,.04),0 3px 10px rgba(16,24,40,.05);}
+.identity:active{transform:scale(.995)}
+.i-icon{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:34px;height:34px;border-radius:var(--aa-radius-sm);background:var(--aa-surface-2);border:1px solid var(--aa-border);color:var(--aa-muted);}
 .i-main{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;}
 .i-label{font-size:14px;font-weight:600;color:var(--aa-text);word-break:break-word;}
 .i-nick,.i-date{font-size:12px;color:var(--aa-faint);word-break:break-word;}
 
 /* 解绑——幽灵动作，悬停转危险色（克制但明确） */
-.unbind{cursor:pointer;flex-shrink:0;padding:5px 10px;border:1px solid transparent;border-radius:var(--aa-radius-sm);background:transparent;color:var(--aa-muted);font-size:12px;font-weight:500;font-family:inherit;line-height:1.4;transition:background-color .15s ease,color .15s ease,border-color .15s ease,box-shadow .15s ease;}
+.unbind{cursor:pointer;flex-shrink:0;padding:5px 10px;border:1px solid transparent;border-radius:var(--aa-radius-sm);background:transparent;color:var(--aa-muted);font-size:12px;font-weight:500;font-family:inherit;line-height:1.4;transition:background-color .15s ease,color .15s ease,border-color .15s ease,box-shadow .15s ease;min-height:30px;}
 .unbind:hover{color:var(--aa-err-fg);background:var(--aa-err-bg);border-color:var(--aa-err-bd);}
 
 /* 空态 */
-.empty{padding:16px 12px;border:1px dashed var(--aa-border);border-radius:var(--aa-radius);color:var(--aa-faint);font-size:13px;text-align:center;background:var(--aa-surface-2);}
+.empty{padding:18px 14px;border:1px dashed var(--aa-border-strong);border-radius:var(--aa-radius);color:var(--aa-faint);font-size:13px;text-align:center;background:var(--aa-surface-2);}
 
-/* 绑定按钮——与 <aardwin-auth> 同美学（描边 / 16px 图标 / 悬停） */
+/* 绑定按钮——与 <aardwin-auth> 同美学（44px 描边 / 16px 图标 / 渐次入场） */
 .bind-group{display:flex;flex-direction:column;gap:8px;}
 .bind-buttons{display:flex;flex-direction:column;gap:10px;}
-.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;box-sizing:border-box;padding:11px 16px;border:1px solid var(--aa-border);border-radius:var(--aa-radius);background:var(--aa-surface);color:var(--aa-text);font-size:14px;font-weight:500;font-family:inherit;line-height:1.2;cursor:pointer;transition:background-color .15s ease,border-color .15s ease,box-shadow .15s ease;}
+.btn{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;box-sizing:border-box;min-height:44px;padding:10px 16px;border:1px solid var(--aa-border);border-radius:var(--aa-radius);background:var(--aa-surface);color:var(--aa-text);font-size:14px;font-weight:500;font-family:inherit;line-height:1.2;cursor:pointer;transition:background-color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .1s ease;animation:aa-rise .5s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(var(--i,0) * 50ms + 80ms);}
 .btn svg{flex-shrink:0;}
-.btn:hover{background:var(--aa-surface-2);border-color:var(--aa-border-strong);}
+.btn:hover{background:var(--aa-surface-2);border-color:var(--aa-border-strong);box-shadow:0 1px 2px rgba(16,24,40,.04),0 3px 10px rgba(16,24,40,.06);}
+.btn:active{transform:scale(.98)}
 
-/* 键盘聚焦环（aardwin-auth 未覆盖，本组件补齐可访问性） */
-.btn:focus-visible,.unbind:focus-visible{outline:none;border-color:var(--aa-focus);box-shadow:0 0 0 3px rgba(9,105,218,.35);}
+/* 键盘聚焦环（品牌深绿，非 Primer 蓝） */
+.btn:focus-visible,.unbind:focus-visible{outline:none;border-color:var(--aa-accent);box-shadow:0 0 0 3px var(--aa-focus);}
 
 /* 禁用（请求进行中 / 已绑态） */
-.btn:disabled,.unbind:disabled{opacity:.55;cursor:not-allowed;}
-.btn:disabled:hover,.unbind:disabled:hover{background:var(--aa-surface);border-color:var(--aa-border);color:var(--aa-muted);}
+.btn:disabled,.unbind:disabled{opacity:.55;cursor:not-allowed;animation:none;}
+.btn:disabled:hover,.unbind:disabled:hover{background:var(--aa-surface);border-color:var(--aa-border);color:var(--aa-muted);box-shadow:none;}
+
+@keyframes aa-rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.identity,.btn{animation:none}.identity:active{transform:none}}
 
 /* 窄屏：行内边距与图标收紧，保持单列不溢出 */
-@media(max-width:420px){.identity{gap:10px;padding:10px;}.i-icon{width:28px;height:28px;}}
+@media(max-width:420px){.identity{gap:10px;padding:11px;}.i-icon{width:30px;height:30px;}}
 `;
+
+/** 语义 banner 图标（currentColor 描边 SVG，非 emoji）。 */
+const ICON_OK =
+  '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="20 6 9 17 4 12"/></svg>';
+const ICON_ERR =
+  '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12"/></svg>';
 
 export class AardwinAccountElement extends HTMLElement {
   private readonly root: ShadowRoot;
@@ -302,7 +310,7 @@ export class AardwinAccountElement extends HTMLElement {
     const sep = texts.lang === "zh" ? "" : " ";
 
     const banner = feedback
-      ? `<div class="banner ${feedback.ok ? "ok" : "err"}" role="${feedback.ok ? "status" : "alert"}">${escapeHtml(feedback.text)}</div>`
+      ? `<div class="banner ${feedback.ok ? "ok" : "err"}" role="${feedback.ok ? "status" : "alert"}">${feedback.ok ? ICON_OK : ICON_ERR}<span>${escapeHtml(feedback.text)}</span></div>`
       : "";
     const emailRow = email
       ? `<div class="row"><span class="row-label">${escapeHtml(texts.emailLabel)}</span><span class="row-value">${escapeHtml(email)}</span></div>`
@@ -312,14 +320,14 @@ export class AardwinAccountElement extends HTMLElement {
       : "";
     const idsHtml = identities.length === 0
       ? `<div class="empty">${escapeHtml(texts.noIdentities)}</div>`
-      : identities.map((i) => this.identityRow(i, texts)).join("");
+      : identities.map((i, idx) => this.identityRow(i, texts, idx)).join("");
     const bindHtml = bindable.length === 0
       ? ""
       : `<div class="bind-group"><div class="group-title">${escapeHtml(texts.bindTitle)}</div><div class="bind-buttons">${bindable
-          .map((p) => {
+          .map((p, idx) => {
             const label = `${texts.bindPrefix}${sep}${texts.labels[p.id] ?? p.id}`;
             const icon = PROVIDER_ICONS[p.id] ?? "";
-            return `<button class="btn bind-btn" part="button" data-bind="${escapeAttr(p.id)}">${icon}${escapeHtml(label)}</button>`;
+            return `<button class="btn bind-btn" part="button" data-bind="${escapeAttr(p.id)}" style="--i:${idx}">${icon}${escapeHtml(label)}</button>`;
           })
           .join("")}</div></div>`;
 
@@ -328,7 +336,7 @@ export class AardwinAccountElement extends HTMLElement {
     );
   }
 
-  private identityRow(i: Identity, texts: ReturnType<typeof resolveSdkTexts>): string {
+  private identityRow(i: Identity, texts: ReturnType<typeof resolveSdkTexts>, index: number): string {
     const label = texts.labels[i.provider] ?? i.provider;
     const icon = PROVIDER_ICONS[i.provider] ?? "";
     const sep = texts.lang === "zh" ? "" : " ";
@@ -337,7 +345,7 @@ export class AardwinAccountElement extends HTMLElement {
     // PII 白名单：provider / nickname / linkedAt（+ identityId 仅作 data 属性供解绑用，不展示）。
     const nick = i.nickname ? `<span class="i-nick">${escapeHtml(i.nickname)}</span>` : "";
     const date = i.linkedAt ? `<span class="i-date">${escapeHtml(texts.linkedAtPrefix + i.linkedAt)}</span>` : "";
-    return `<div class="identity" data-identity-id="${escapeAttr(i.identityId)}" data-provider="${escapeAttr(i.provider)}"><span class="i-icon">${icon}</span><span class="i-main"><span class="i-label">${escapeHtml(label)}</span>${nick}${date}</span><button class="unbind" data-unbind="${escapeAttr(i.identityId)}" aria-label="${escapeAttr(unbindAria)}">${escapeHtml(texts.unbindLabel)}</button></div>`;
+    return `<div class="identity" data-identity-id="${escapeAttr(i.identityId)}" data-provider="${escapeAttr(i.provider)}" style="--i:${index}"><span class="i-icon">${icon}</span><span class="i-main"><span class="i-label">${escapeHtml(label)}</span>${nick}${date}</span><button class="unbind" data-unbind="${escapeAttr(i.identityId)}" aria-label="${escapeAttr(unbindAria)}">${escapeHtml(texts.unbindLabel)}</button></div>`;
   }
 
   private bindActions(
@@ -399,8 +407,9 @@ export class AardwinAccountElement extends HTMLElement {
     const div = document.createElement("div");
     div.className = `banner ${feedback.ok ? "ok" : "err"}`;
     div.setAttribute("role", feedback.ok ? "status" : "alert");
-    // textContent 赋值天然防 XSS（无需 escapeHtml）。
-    div.textContent = feedback.text;
+    // 图标为静态 SVG 字符串（无用户数据）；文案走 textContent 天然防 XSS（无需 escapeHtml）。
+    div.innerHTML = `${feedback.ok ? ICON_OK : ICON_ERR}<span class="banner-text"></span>`;
+    div.querySelector(".banner-text")!.textContent = feedback.text;
     account.insertBefore(div, account.firstChild);
   }
 

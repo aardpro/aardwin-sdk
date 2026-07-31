@@ -25,6 +25,70 @@ import {
  * and does a full-page redirect to `${authorizeEndpoint}/authorize?…` —— 微信跳国内
  * bff，Google 跳海外 bff。换码仍走 api `/api/oauth/token`（见 exchangeCode）。
  */
+/** 错误态警示图标：16px 三角告警（currentColor，随 .error 的红色渲染）。 */
+const WARN_SVG =
+  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>';
+
+/** Shadow-DOM scoped 设计系统（与 <aardwin-account> 同源 token —— 品牌化中性面）。
+ *  每次 mount 都注入（loading/error 等非终态同样有品味），宿主可覆盖 --aa-*。 */
+const STYLES = `
+:host{
+  display:block;
+  /* 品牌化设计 token（与 <aardwin-account> 同源）——宿主可覆盖 --aa-* */
+  --aa-fg:#16181d;--aa-muted:#5b616e;--aa-faint:#8a919e;
+  --aa-border:#e3e6ea;--aa-border-strong:#c8cdd4;
+  --aa-surface:#ffffff;--aa-surface-2:#f7f8fa;
+  --aa-accent:#059669;--aa-focus:rgba(5,150,105,.30);
+  --aa-radius:12px;
+  color:var(--aa-fg);
+  -webkit-font-smoothing:antialiased;
+}
+*,*::before,*::after{box-sizing:border-box}
+.wrap{display:flex;flex-direction:column;gap:10px;width:100%}
+/* 等宽全宽纵向列；描边按钮（前 5 个 provider） */
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  width:100%;box-sizing:border-box;min-height:44px;padding:10px 16px;
+  border:1px solid var(--aa-border);border-radius:var(--aa-radius);
+  background:var(--aa-surface);color:var(--aa-fg);
+  font-size:14px;font-weight:500;font-family:inherit;line-height:1.2;
+  cursor:pointer;
+  transition:background-color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .1s ease;
+  animation:aa-rise .5s cubic-bezier(.16,1,.3,1) both;
+  animation-delay:calc(var(--i,0) * 55ms);
+}
+.btn svg{flex-shrink:0}
+.btn:hover{background:var(--aa-surface-2);border-color:var(--aa-border-strong);box-shadow:0 1px 2px rgba(16,24,40,.04),0 3px 10px rgba(16,24,40,.06)}
+.btn:active{transform:scale(.98)}
+.btn:focus-visible{outline:none;border-color:var(--aa-accent);box-shadow:0 0 0 3px var(--aa-focus)}
+/* email：链接形态（无边框、透明底、hover 下划线）——品牌深绿文字 */
+.btn-email{
+  background:transparent;border:none;color:var(--aa-accent);
+  min-height:36px;padding:7px 16px;box-shadow:none;
+  animation-delay:calc(var(--i,0) * 55ms + 70ms);
+}
+.btn-email:hover{background:transparent;text-decoration:underline;box-shadow:none}
+.btn-email:active{transform:scale(.98)}
+.btn-email:focus-visible{box-shadow:0 0 0 3px var(--aa-focus)}
+/* 骨架屏 loading（无 spinner，匹配按钮行高） */
+.loading{display:flex;flex-direction:column;gap:10px;padding:2px 0}
+.skel{height:44px;border-radius:var(--aa-radius);background:linear-gradient(90deg,#f1f2f4 25%,#f8f9fa 37%,#f1f2f4 63%);background-size:400% 100%;animation:aa-shimmer 1.4s ease-in-out infinite}
+.skel:nth-child(2){animation-delay:.15s}
+.skel:nth-child(3){animation-delay:.3s}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+/* 错误态：内联警示条（图标 + 文案） */
+.error{
+  display:flex;align-items:flex-start;gap:9px;padding:11px 13px;
+  border:1px solid #f1d5d3;border-radius:var(--aa-radius);
+  background:#fdf3f2;color:#b42318;
+  font-size:13px;line-height:1.45;word-break:break-word;
+}
+.error svg{flex-shrink:0;margin-top:1px}
+@keyframes aa-rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes aa-shimmer{0%{background-position:100% 50%}100%{background-position:0 50%}}
+@media(prefers-reduced-motion:reduce){.btn,.skel{animation:none}.btn{transition:none}}
+`;
+
 export class AardwinAuthElement extends HTMLElement {
   private readonly root: ShadowRoot;
   // H7: render race-guard. 每次 render 入口自增，fetch 返回后若 seq 不匹配，说明期间
@@ -71,12 +135,14 @@ export class AardwinAuthElement extends HTMLElement {
     const apiOrigin = resolveApiOrigin(this.getAttribute("api-origin"));
 
     if (!siteId) {
-      this.mount(`<div class="error">${escapeHtml(texts.missingSiteId)}</div>`);
+      this.mount(`${WARN_SVG}<div class="error" role="alert">${escapeHtml(texts.missingSiteId)}</div>`);
       this.emitError('render', texts.missingSiteId);
       return;
     }
 
-    this.mount(`<div class="loading">${escapeHtml(texts.loading)}</div>`);
+    this.mount(
+      `<div class="loading" role="status"><div class="skel"></div><div class="skel"></div><div class="skel"></div><span class="sr-only">${escapeHtml(texts.loading)}</span></div>`,
+    );
 
     // 拉取 + 校验 provider 列表抽出为共享 fetchSiteProviders（与 <aardwin-account> 复用），
     // 行为与原内联 fetch+校验逐行等价：网络/非 2xx/缺 data.providers 数组 → loadFailed。
@@ -85,14 +151,14 @@ export class AardwinAuthElement extends HTMLElement {
     if (seq !== this.#renderSeq) return;
     if (!fetched.ok) {
       this.emitError('render', texts.loadFailed);
-      this.mount(`<div class="error">${escapeHtml(texts.loadFailed)}</div>`);
+      this.mount(`${WARN_SVG}<div class="error" role="alert">${escapeHtml(texts.loadFailed)}</div>`);
       return;
     }
     const providers: ProviderInfo[] = fetched.providers;
 
     if (providers.length === 0) {
       this.emitError('render', texts.zeroChannels);
-      this.mount(`<div class="error">${escapeHtml(texts.zeroChannels)}</div>`);
+      this.mount(`${WARN_SVG}<div class="error" role="alert">${escapeHtml(texts.zeroChannels)}</div>`);
       return;
     }
 
@@ -136,14 +202,14 @@ export class AardwinAuthElement extends HTMLElement {
         // issue 6：每个 provider 配 16px 单色 SVG（currentColor），主题中立；未知 provider 无图标。
         const icon = PROVIDER_ICONS[p.id] ?? "";
         // 前 5 个：等宽全宽描边按钮；email：链接形态（无边框、透明底、整行可点、hover 下划线）。
+        // 视觉：品牌化中性面 —— 12px 圆角 + 发丝边框 + 渐次入场（stagger，--i 逐项 55ms）。
         const cls = isEmail ? "btn btn-email" : "btn";
-        return `<button class="${cls}" part="button" data-provider="${escapeAttr(p.id)}" data-endpoint="${escapeAttr(endpoint)}">${icon}${escapeHtml(label)}</button>`;
+        const delay = ordered.findIndex((x) => x.id === p.id);
+        return `<button class="${cls}" part="button" data-provider="${escapeAttr(p.id)}" data-endpoint="${escapeAttr(endpoint)}" style="--i:${delay}">${icon}${escapeHtml(label)}</button>`;
       })
       .join("");
 
-    this.mount(
-      `<style>:host{display:block}.wrap{display:flex;flex-direction:column;gap:10px;width:100%}.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;box-sizing:border-box;padding:11px 16px;border:1px solid #d0d7de;border-radius:8px;background:#fff;color:#24292f;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;transition:background-color .15s ease,border-color .15s ease,box-shadow .15s ease}.btn svg{flex-shrink:0}.btn:hover{background:#f6f8fa;border-color:#afb8c1}.btn-email{background:transparent;border:none;color:#0969da;padding:8px 16px}.btn-email:hover{background:transparent;text-decoration:underline}.loading,.error{padding:8px;color:#666}.error{color:#b91c1c}</style><div class="wrap">${buttons}</div>`,
-    );
+    this.mount(`<div class="wrap">${buttons}</div>`);
 
     this.root.querySelectorAll<HTMLButtonElement>("button.btn").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -196,12 +262,14 @@ export class AardwinAuthElement extends HTMLElement {
       const message = err instanceof Error ? err.message : String(err);
       this.emitError('start', message, provider);
       const texts = resolveSdkTexts(this.getAttribute('i18n'), navigator.language);
-      this.mount(`<div class="error">${escapeHtml(texts.loadFailed)}</div>`);
+      this.mount(`${WARN_SVG}<div class="error" role="alert">${escapeHtml(texts.loadFailed)}</div>`);
     }
   }
 
   private mount(html: string): void {
-    this.root.innerHTML = html;
+    // 每次挂载都注入 scoped 样式：loading/error 等「非终态」也走 mount，
+    // 确保骨架屏、警示条同样有品味（与 <aardwin-account> 的 mount 同模式）。
+    this.root.innerHTML = `<style>${STYLES}</style>${html}`;
   }
 }
 
