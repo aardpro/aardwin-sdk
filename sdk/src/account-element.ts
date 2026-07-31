@@ -216,20 +216,23 @@ export class AardwinAccountElement extends HTMLElement {
     }
     if (seq !== this.#renderSeq) return;
 
-    // 2) 绑定回调 confirm：URL 带 ?pending & ?provider → confirm 后清 URL + 带反馈重载。
+    // 2) 绑定回调 confirm：URL 带 ?pending & ?provider → confirm 后带反馈重载。
     const cb = this.readPendingCallback();
     if (cb) {
+      // H9: 先清 URL 再 confirm——React StrictMode 会双重挂载 custom element，
+      // render() 并发跑两次，两次都读到同一 ?pending=。若不清 URL 就 confirm，
+      // 第一次 confirm 消费 pending 成功后第二次 confirm 拿 404（not_found）→ 覆盖掉成功。
+      // 此处 IMMEDIATELY 从 URL 删除 ?pending & ?provider（同步），确保第二次 render()
+      // readPendingCallback() 读到 null 跳过 confirm；实际 confirm 只执行一次。
+      this.clearPendingFromUrl();
       this.mount(`<div class="stub" role="status">${escapeHtml(texts.accountLoading)}</div>`);
       let feedback: Feedback;
       try {
         await this.confirmLink(apiOrigin, token, cb.provider, cb.pending);
         feedback = { ok: true, text: texts.linkSuccess };
       } catch {
-        // 任意 confirm 失败（含 401）都按契约清 URL + 重载 identities；
-        // 若 token 已死（401），随后的 identities 拉取会落到 sessionExpired（并清 token）。
         feedback = { ok: false, text: texts.linkFailed };
       }
-      this.clearPendingFromUrl();
       if (seq !== this.#renderSeq) return;
       await this.paintAll(apiOrigin, token, siteId, texts, seq, feedback);
       return;
