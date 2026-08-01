@@ -9,8 +9,8 @@
     "start": "next start"
   },
   "dependencies": {
-    "@aardwin/auth-browser": "^0.2.0",
-    "@aardwin/auth-server": "^0.3.0",
+    "@aardwin/auth-browser": "^0.3.3",
+    "@aardwin/auth-server": "^0.3.1",
     "next": "^15.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
