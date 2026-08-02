@@ -11,13 +11,15 @@ import {
 } from "./provider-shared";
 
 /**
- * <aardwin-auth site-id="…" i18n="…" api-origin="…">
+ * <aardwin-auth site-id="…" i18n="…" api-origin="…" callback-path="…">
  *
  * Only `site-id` is required.
  * `i18n`（可选）：'zh' | 'en' 显式指定；缺省/非法值时按 `navigator.language` 检测（含 zh → 中文，否则英文），英文是 default。切换所有文案（按钮、错误、加载提示）。
  * `api-origin`（可选）：覆盖默认 api 入口 API_ORIGIN，用于本地开发
  * （仅覆盖 `/api/providers` 拉取入口与 `/authorize` 兜底，provider 的 authorizeEndpoint
  * 由 admin 在平台 provider 配置里维护，不受此属性影响）。
+ * `callback-path`（可选）：显式指定 OAuth / email 回调路径；非空时追加 `return_url`
+ * 到 bff 跳转 URL，缺省/空串时不发 `return_url`，bff 回退站点注册 callbackUrl（向后兼容）。
  *
  * Renders one button per provider registered for the site (fetched from
  * `GET ${apiOrigin ?? API_ORIGIN}/api/providers?site_id=…`). Each button records the provider's
@@ -113,7 +115,7 @@ export class AardwinAuthElement extends HTMLElement {
   }
 
   static get observedAttributes(): string[] {
-    return ["site-id", "i18n", "api-origin"];
+    return ["site-id", "i18n", "api-origin", "callback-path"];
   }
 
   attributeChangedCallback(): void {
@@ -244,16 +246,28 @@ export class AardwinAuthElement extends HTMLElement {
     try {
       const state = randomState();
       document.cookie = `${STATE_COOKIE}=${state}; Path=/; Max-Age=1800; SameSite=Lax`;
+      // callback-path 可选：非空时追加 return_url，缺省时保持原行为（bff 回退注册 callbackUrl）。
+      const callbackPath = this.getAttribute("callback-path")?.trim();
+      const returnUrl = callbackPath
+        ? new URL(callbackPath, location.origin).href
+        : undefined;
       if (provider === "email") {
         // email 验证码不走 /authorize 授权码流程，直达邮箱验证页；
         // state 走 query，由 bff 表单隐藏字段透传至最终回调。
         // lang 透传（issue 2）：bff email-auth 的 pickLang 先读 query.lang，
         // 使按钮语言与跳转后页面语言一致。
-        window.location.href = `${endpoint}/email-auth/${encodeURIComponent(siteId)}?state=${encodeURIComponent(state)}&lang=${encodeURIComponent(lang)}`;
+        let href = `${endpoint}/email-auth/${encodeURIComponent(siteId)}?state=${encodeURIComponent(state)}&lang=${encodeURIComponent(lang)}`;
+        if (returnUrl) {
+          href += `&return_url=${encodeURIComponent(returnUrl)}`;
+        }
+        window.location.href = href;
         return;
       }
       // lang 同样透传到 OAuth /authorize（issue 2），统一两条跳转的页面语言。
       const params = new URLSearchParams({ site_id: siteId, provider, state, lang });
+      if (returnUrl) {
+        params.set("return_url", returnUrl);
+      }
       const base = endpoint || apiOrigin;
       window.location.href = `${base}/authorize?${params.toString()}`;
     } catch (err) {
