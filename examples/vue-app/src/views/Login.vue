@@ -45,6 +45,7 @@ function retry() {
   <div class="login-card">
     <h1 class="title">Sign in</h1>
     <p class="subtitle">Continue with one of the providers below</p>
+    <span class="tech-pill">Vue 3 · Vite · vue-router</span>
 
     <div v-if="error" class="error-banner" role="alert">
       <span>{{ error }}</span>
@@ -72,9 +73,24 @@ function retry() {
   margin: 10vh auto 0;
   padding: 36px 32px;
   border: 1px solid #e3e6ea;
+  /* Vue 品牌色顶栏（#42b883，与 Next.js 示例的黑色区分，demo 双产品演示时一眼可辨）。 */
+  border-top: 3px solid #42b883;
   border-radius: 14px;
   background: #fff;
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 12px 32px rgba(16, 24, 40, 0.06);
+}
+
+/* 技术标识 pill：Vue 品牌绿底白字。 */
+.tech-pill {
+  display: inline-block;
+  margin: 0 0 20px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #42b883;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .title {

@@ -58,7 +58,10 @@ async function signOut() {
 
 <template>
   <div class="dashboard">
-    <h1 class="title">Dashboard</h1>
+    <div class="hero-row">
+      <h1 class="title">Vue App</h1>
+      <span class="tech-pill">Vue 3 · Vite · vue-router</span>
+    </div>
 
     <section v-if="user" class="card">
       <h2 class="card-title">User Info</h2>
@@ -116,8 +119,28 @@ async function signOut() {
   padding: 0 24px;
 }
 
-.title {
+.hero-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin: 0 0 24px;
+}
+
+/* 技术标识 pill：Vue 品牌绿底白字（与 Next.js 示例的黑色区分）。 */
+.tech-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #42b883;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.title {
+  margin: 0;
   font-size: 24px;
   font-weight: 700;
   letter-spacing: -0.01em;

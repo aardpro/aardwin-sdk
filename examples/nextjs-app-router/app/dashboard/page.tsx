@@ -29,6 +29,18 @@ const H2: React.CSSProperties = { margin: '0 0 14px', fontSize: 14, fontWeight: 
 const KV_LABEL: React.CSSProperties = { padding: '4px 16px 4px 0', fontWeight: 600, fontSize: 13, color: '#5b616e', whiteSpace: 'nowrap' };
 const KV_VALUE: React.CSSProperties = { padding: '4px 0', fontSize: 13, color: '#16181d', wordBreak: 'break-all' };
 const MUTED: React.CSSProperties = { color: '#8a919e', fontSize: 12, lineHeight: 1.6 };
+// 技术标识 pill：Next.js 品牌黑，与 Vue 示例的绿色区分。
+const PILL: React.CSSProperties = {
+  display: 'inline-block',
+  padding: '3px 10px',
+  borderRadius: 999,
+  background: '#000',
+  color: '#fff',
+  fontSize: 11,
+  fontWeight: 600,
+  letterSpacing: '0.02em',
+  whiteSpace: 'nowrap',
+};
 const SIGNOUT: React.CSSProperties = {
   padding: '9px 18px',
   border: '1px solid #e3e6ea',
@@ -69,7 +81,10 @@ export default async function DashboardPage() {
 
   return (
     <main style={MAIN}>
-      <h1 style={H1}>Dashboard</h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '0 0 24px' }}>
+        <h1 style={{ ...H1, margin: 0 }}>Next.js App</h1>
+        <span style={PILL}>Next.js 15 · React 19</span>
+      </div>
 
       <section style={SECTION}>
         <h2 style={H2}>User Info</h2>

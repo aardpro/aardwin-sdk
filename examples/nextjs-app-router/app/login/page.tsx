@@ -13,9 +13,24 @@ const CARD: React.CSSProperties = {
   fontFamily:
     "system-ui,-apple-system,'Segoe UI',Roboto,'PingFang SC','Microsoft YaHei',sans-serif",
   border: '1px solid #e3e6ea',
+  // Next.js 品牌色顶栏（与 Vue 示例的绿色区分，demo 双产品演示时一眼可辨）。
+  borderTop: '3px solid #000',
   borderRadius: 14,
   background: '#fff',
   boxShadow: '0 1px 2px rgba(16,24,40,.04), 0 12px 32px rgba(16,24,40,.06)',
+};
+
+// 技术标识 pill：黑底白字，标识本示例的技术栈。
+const PILL: React.CSSProperties = {
+  display: 'inline-block',
+  margin: '0 0 20px',
+  padding: '3px 10px',
+  borderRadius: 999,
+  background: '#000',
+  color: '#fff',
+  fontSize: 11,
+  fontWeight: 600,
+  letterSpacing: '0.02em',
 };
 
 const TITLE: React.CSSProperties = {
@@ -79,6 +94,7 @@ function LoginPageInner() {
     <main style={CARD}>
       <h1 style={TITLE}>Sign in</h1>
       <p style={SUB}>Continue with one of the providers below</p>
+      <span style={PILL}>Next.js 15 · React 19</span>
       {error && (
         <div style={ERROR} role="alert">
           <span>{error}</span>
