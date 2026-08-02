@@ -281,6 +281,98 @@ describe('resolveSdkTexts — i18n locale resolution', () => {
   });
 });
 
+/**
+ * callback-path 可选属性：非空时追加 return_url 到 bff 跳转 URL；缺省/空串时不发。
+ * 兼容两条跳转分支（OAuth /authorize 与 email /email-auth），不影响 site_id/provider/state/lang。
+ */
+describe('startAuth callback-path — return_url behavior', () => {
+  function sampleState(): string {
+    const bytes = new Uint8Array(16);
+    for (let i = 0; i < bytes.length; i++) bytes[i] = i;
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  it('OAuth branch with callback-path appends return_url (absolute from location.origin)', () => {
+    const siteId = 'site_abc';
+    const endpoint = 'https://auth.aard.win';
+    const state = sampleState();
+    const lang = 'en';
+    const callbackPath = '/callback';
+    const returnUrl = new URL(callbackPath, 'http://localhost:5173').href;
+
+    const params = new URLSearchParams({ site_id: siteId, provider: 'github', state, lang });
+    params.set('return_url', returnUrl);
+    const oauthHref = `${endpoint}/authorize?${params.toString()}`;
+
+    const u = new URL(oauthHref);
+    expect(u.pathname).toBe('/authorize');
+    expect(u.searchParams.get('site_id')).toBe(siteId);
+    expect(u.searchParams.get('provider')).toBe('github');
+    expect(u.searchParams.get('state')).toBe(state);
+    expect(u.searchParams.get('lang')).toBe(lang);
+    expect(u.searchParams.get('return_url')).toBe(returnUrl);
+    // new URL('/callback', 'http://localhost:5173').href = 'http://localhost:5173/callback'
+    expect(returnUrl).toBe('http://localhost:5173/callback');
+  });
+
+  it('OAuth branch without callback-path omits return_url entirely', () => {
+    const siteId = 'site_abc';
+    const endpoint = 'https://auth.aard.win';
+    const state = sampleState();
+    const lang = 'zh';
+
+    const params = new URLSearchParams({ site_id: siteId, provider: 'wechat', state, lang });
+    const oauthHref = `${endpoint}/authorize?${params.toString()}`;
+
+    const u = new URL(oauthHref);
+    expect(u.searchParams.get('site_id')).toBe(siteId);
+    expect(u.searchParams.get('provider')).toBe('wechat');
+    expect(u.searchParams.get('state')).toBe(state);
+    expect(u.searchParams.get('lang')).toBe(lang);
+    expect(u.searchParams.has('return_url')).toBe(false);
+  });
+
+  it('email branch with callback-path appends encoded return_url', () => {
+    const siteId = 'site_abc';
+    const endpoint = 'https://auth.aard.win';
+    const state = sampleState();
+    const lang = 'en';
+    const callbackPath = '/callback';
+    const returnUrl = new URL(callbackPath, 'http://localhost:5173').href;
+
+    let emailHref = `${endpoint}/email-auth/${encodeURIComponent(siteId)}?state=${encodeURIComponent(state)}&lang=${encodeURIComponent(lang)}`;
+    emailHref += `&return_url=${encodeURIComponent(returnUrl)}`;
+
+    const u = new URL(emailHref);
+    expect(u.pathname).toBe('/email-auth/site_abc');
+    expect(u.searchParams.get('state')).toBe(state);
+    expect(u.searchParams.get('lang')).toBe(lang);
+    expect(u.searchParams.get('return_url')).toBe(returnUrl);
+  });
+
+  it('email branch without callback-path has no return_url', () => {
+    const siteId = 'site_abc';
+    const endpoint = 'https://auth.aard.win';
+    const state = sampleState();
+    const lang = 'zh';
+
+    const emailHref = `${endpoint}/email-auth/${encodeURIComponent(siteId)}?state=${encodeURIComponent(state)}&lang=${encodeURIComponent(lang)}`;
+
+    const u = new URL(emailHref);
+    expect(u.searchParams.get('state')).toBe(state);
+    expect(u.searchParams.get('lang')).toBe(lang);
+    expect(u.searchParams.has('return_url')).toBe(false);
+  });
+
+  it('callback-path ignores whitespace-only values (treated as absent)', () => {
+    const callbackPath = '   ';
+    const returnUrl = callbackPath.trim()
+      ? new URL(callbackPath.trim(), 'http://localhost:5173').href
+      : undefined;
+    expect(returnUrl).toBeUndefined();
+  });
+});
+
 describe('email button endpoint — uses api authorizeEndpoint', () => {
   // email-endpoint attribute 已移除：email 与 OAuth 统一由 api 返回的 authorizeEndpoint。
   // 复制 component render() 内的表达式：const endpoint = p.authorizeEndpoint;

@@ -33,6 +33,8 @@ import '@aardwin/auth-browser'; // side-effect: registers <aardwin-auth>
 | `i18n` | 否 | `'zh' \| 'en'` | 显式指定语言；留空则按 `navigator.language` 自动检测，默认英文 |
 | `api-origin` | 否 | `string` | 覆盖 API 入口地址，本地开发时指向 `http://localhost:4000` |
 
+`callback-path`（可选）显式指定回调路径（如 `/callback`），非空时 SDK 会在 bff 跳转 URL 中追加 `return_url`；缺省/空串时不发 `return_url`，bff 回退站点注册 callbackUrl。
+
 ## 0. Register your app (on the aardwin developer portal)
 
 You receive / configure:
@@ -115,7 +117,7 @@ import 后 `<aardwin-auth>` 的属性（`site-id` 必填、`i18n?`、`api-origin
 declare global {
   namespace JSX {
     interface IntrinsicElements {
-      'aardwin-auth': { 'site-id': string; i18n?: 'zh' | 'en'; 'api-origin'?: string };
+      'aardwin-auth': { 'site-id': string; i18n?: 'zh' | 'en'; 'api-origin'?: string; 'callback-path'?: string };
     }
   }
 }

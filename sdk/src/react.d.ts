@@ -21,6 +21,8 @@ interface AardwinAuthAttributes {
   i18n?: AardwinAuthI18n;
   /** 覆盖默认 api 入口，用于本地开发。 */
   'api-origin'?: string;
+  /** 显式回调路径；非空时追加 `return_url` 到跳转 URL，缺省/空串时不发。 */
+  'callback-path'?: string;
 }
 
 declare global {

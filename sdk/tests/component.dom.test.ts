@@ -200,6 +200,116 @@ describe('issue 6 — button redesign: order, layout, email link, icons', () => 
   });
 });
 
+describe('callback-path → return_url appended to redirect', () => {
+  afterEach(() => {
+    globalThis.fetch = ORIGINAL_FETCH;
+    document.body.innerHTML = '';
+    clearStateCookie();
+  });
+
+  it('clicking oauth button with callback-path sets return_url to absolute callback URL', async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: {
+              providers: [
+                { id: 'github', authorizeEndpoint: 'https://auth.aard.win' },
+              ],
+            },
+          }),
+      }),
+    ) as unknown as typeof fetch;
+
+    // Fix the origin so the computed absolute return_url is deterministic.
+    window.location.href = 'http://localhost:5173/login';
+    const el = document.createElement('aardwin-auth') as HTMLElement;
+    el.setAttribute('site-id', 'test-site');
+    el.setAttribute('callback-path', '/callback');
+    document.body.appendChild(el);
+    await waitFor(50);
+
+    const shadow = (el as unknown as { shadowRoot: ShadowRoot | null }).shadowRoot;
+    const btn = shadow?.querySelector<HTMLButtonElement>('button.btn');
+    expect(btn).toBeTruthy();
+    btn!.click();
+
+    const href = window.location.href;
+    expect(href).toContain('/authorize');
+    expect(href).toContain('site_id=test-site');
+    expect(href).toContain('provider=github');
+    expect(href).toContain('state=');
+    expect(href).toContain('return_url=');
+    expect(href).toContain(encodeURIComponent('http://localhost:5173/callback'));
+    expect(href).toMatch(/lang=(zh|en)/);
+  });
+
+  it('whitespace-only callback-path is treated as absent (no return_url)', async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: {
+              providers: [
+                { id: 'github', authorizeEndpoint: 'https://auth.aard.win' },
+              ],
+            },
+          }),
+      }),
+    ) as unknown as typeof fetch;
+
+    const el = document.createElement('aardwin-auth') as HTMLElement;
+    el.setAttribute('site-id', 'test-site');
+    el.setAttribute('callback-path', '   ');
+    document.body.appendChild(el);
+    await waitFor(50);
+
+    const shadow = (el as unknown as { shadowRoot: ShadowRoot | null }).shadowRoot;
+    const btn = shadow?.querySelector<HTMLButtonElement>('button.btn');
+    btn!.click();
+
+    expect(window.location.href).toContain('/authorize');
+    expect(window.location.href).not.toContain('return_url=');
+  });
+
+  it('email button with callback-path appends return_url', async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: {
+              providers: [
+                { id: 'email', authorizeEndpoint: 'https://auth.aard.win' },
+              ],
+            },
+          }),
+      }),
+    ) as unknown as typeof fetch;
+
+    // Fix the origin so the computed absolute return_url is deterministic.
+    window.location.href = 'http://localhost:5173/login';
+    const el = document.createElement('aardwin-auth') as HTMLElement;
+    el.setAttribute('site-id', 'test-site');
+    el.setAttribute('callback-path', '/callback');
+    el.setAttribute('i18n', 'en');
+    document.body.appendChild(el);
+    await waitFor(50);
+
+    const shadow = (el as unknown as { shadowRoot: ShadowRoot | null }).shadowRoot;
+    const emailBtn = shadow?.querySelector<HTMLButtonElement>('button.btn-email');
+    expect(emailBtn).toBeTruthy();
+    emailBtn!.click();
+
+    const href = window.location.href;
+    expect(href).toContain('/email-auth/test-site');
+    expect(href).toContain('return_url=');
+    expect(href).toContain(encodeURIComponent('http://localhost:5173/callback'));
+  });
+});
+
 /**
  * issue 2（DOM）：email 与 OAuth 两条跳转都透传 ?lang=，且 lang 跟随 i18n 属性。
  */
