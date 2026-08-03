@@ -38,7 +38,7 @@ jobs:
 
       - name: Bump @aardwin/auth-browser version to match tag
         if: startsWith(github.ref_name, 'auth-browser-v')
-        working-directory: sdk
+        working-directory: browser-sdk
         run: npm version "${{ steps.ver.outputs.version }}" --no-git-tag-version --allow-same-version
 
       - name: Bump @aardwin/auth-server version to match tag
@@ -47,7 +47,7 @@ jobs:
         run: npm version "${{ steps.ver.outputs.version }}" --no-git-tag-version --allow-same-version
 
       - name: Publish @aardwin/auth-browser
-        working-directory: sdk
+        working-directory: browser-sdk
         if: startsWith(github.ref_name, 'auth-browser-v')
         run: |
           bun install --frozen-lockfile
