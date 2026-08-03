@@ -4,7 +4,7 @@ Standalone home for aardwin's public, MIT-licensed auth SDKs.
 
 - [`browser-sdk/`](./browser-sdk) — `@aardwin/auth-browser`: embeddable `<aardwin-auth>` Web Component (browser)
 - [`server-sdk/`](./server-sdk) — `@aardwin/auth-server`: framework-agnostic server client (`createAardwinClient` / `exchangeCode`)
-- [`examples/nextjs-app-router/`](./examples/nextjs-app-router) — Next.js App Router demo consuming both published packages
+- [`examples/nextjs-app/`](./examples/nextjs-app) — Next.js App Router demo consuming both published packages
 
 Both packages are published to npm. Consumers should depend on the npm packages
 (`@aardwin/auth-browser`, `@aardwin/auth-server`), not the local source.
