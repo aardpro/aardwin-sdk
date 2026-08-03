@@ -38,7 +38,7 @@ const user = await exchangeCode({ code, siteId, clientSecret: process.env.AARDWI
 ## 构建
 
 ```bash
-cd sdk
+cd browser-sdk
 bun run build        # 产出 dist/index.mjs（浏览器 ESM）+ dist/*.d.ts（类型）
 bun run build:iife   # 产出 dist/aardwin-auth.iife.js（CDN <script> 即用）
 ```
@@ -71,7 +71,7 @@ src/
 
 发布步骤：
 ```bash
-cd sdk
+cd browser-sdk
 # 1. 改 src/config.ts 的 API_ORIGIN 为真实线上 api origin（发布前必改！）
 # 2. 如需升版本号
 npm version patch   # 或 minor / major
@@ -83,7 +83,7 @@ npm publish --access public
 
 **验证发布内容（不发实际 publish）**：
 ```bash
-cd sdk
+cd browser-sdk
 bun run build
 npm pack --dry-run    # 检查将要发布的文件清单
 ```
