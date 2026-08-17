@@ -8,7 +8,7 @@
 
 微信、Google、Outlook、GitHub、Discord + 邮箱验证码，一套 OAuth 登录。任意框架放一个 `<aardwin-auth>` Web Component，服务端校验回调，所有 aardwin 用户即可登录你的应用 —— 一个账号，通用于每个接入它的产品。控制台：**https://aard.win**
 
-[![SDK demo](preview/nextjs-snapshot.webp)](./preview/demo.mp4)
+[![SDK demo](preview/nextjs-snapshot.png)](https://aard.win/sdk-demo.mp4)
 
 ▶ 21 秒演示 —— 同一张登录卡片分别出现在 Next.js 应用和 Vue 应用里，然后走完 OAuth 回调往返。
 
@@ -20,8 +20,8 @@
     <th>Vue 应用</th>
   </tr>
   <tr>
-    <td><img src="preview/nextjs-snapshot.webp" alt="Next.js 应用中渲染的 aardwin 登录卡片" width="360"></td>
-    <td><img src="preview/vuejs-snapshot.webp" alt="Vue 应用中渲染的 aardwin 登录卡片" width="360"></td>
+    <td><img src="preview/nextjs-snapshot.png" alt="Next.js 应用中渲染的 aardwin 登录卡片" width="360"></td>
+    <td><img src="preview/vuejs-snapshot.png" alt="Vue 应用中渲染的 aardwin 登录卡片" width="360"></td>
   </tr>
 </table>
 
