@@ -1,6 +1,6 @@
 # @aardwin/auth-server
 
-**English** | [中文](https://github.com/aardpro/aardwin-sdk/blob/main/server-sdk/README.zh-CN.md)
+**English** | [中文](./README.zh-CN.md)
 
 Framework-agnostic aardwin API client for server-side code. Exchanges one-time OAuth codes for
 end-user identity, and mints account-handoff codes for the browser-side `<aardwin-account>`
@@ -28,7 +28,7 @@ npm install @aardwin/auth-server
 ## 2. Quickstart (client instance)
 
 Prefer `createAardwinClient()` for any process that issues multiple exchanges (or will use future
-SDK methods) — it holds `siteId` / `clientSecret` / `apiOrigin` / `timeoutMs` / `fetch` in a closure
+SDK methods) — it holds `siteId` / `clientSecret` / `timeoutMs` / `fetch` in a closure
 so you don't repeat them.
 
 ```ts
@@ -37,7 +37,6 @@ import { createAardwinClient } from '@aardwin/auth-server';
 const client = createAardwinClient({
   siteId: 'YOUR_SITE_ID',
   clientSecret: process.env.AARDWIN_CLIENT_SECRET, // server-only; NEVER ship to the browser
-  // apiOrigin: 'https://api.aard.win', // default; override for local dev
   // timeoutMs: 8000,                  // default; 0 / Infinity disables
 });
 
@@ -247,9 +246,8 @@ This package touches two endpoints:
 | `POST /api/account/handoff` | your backend → api | `{ site_id, user_id, client_secret }` (JSON)                  | `{ code, expires_in }` (envelope `code: 0`)           |
 
 The default origin is `https://api.aard.win` (the aardwin **api**, not the bff). For the full
-flow table (provider list, authorize redirect, callback) and the side-by-side of both SDKs'
-origin-override params, see the browser SDK guide at
-`https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/SDK.md`.
+flow table (provider list, authorize redirect, callback) and the side-by-side of both SDKs,
+see the browser SDK guide at [../browser-sdk/SDK.md](../browser-sdk/SDK.md).
 
 ---
 
@@ -289,7 +287,7 @@ Then on the page (browser):
 ```
 
 `client.createAccountHandoff({ userId })` falls back to the client's defaults for every
-other field (`siteId`, `clientSecret`, `apiOrigin`, `timeoutMs`, `signal`, `fetch`); only
+other field (`siteId`, `clientSecret`, `timeoutMs`, `signal`, `fetch`); only
 `userId` is required.
 
 Standalone (single call) form:

@@ -25,13 +25,8 @@ npm run dev
 ## 4. 在测试页嵌入 SDK
 
 ```html
-<aardwin-auth
-  site-id="test-site-id"
-  api-origin="http://localhost:4000"
-></aardwin-auth>
+<aardwin-auth site-id="test-site-id"></aardwin-auth>
 ```
-
-`api-origin` 指向本地 api，使 SDK 从 localhost 拉取 provider 列表与授权入口。
 
 ## 5. 授权 → 回调 → 换码
 
@@ -46,7 +41,6 @@ const user = await exchangeCode({
   code,
   siteId: 'test-site-id',
   clientSecret: process.env.AARDWIN_CLIENT_SECRET!,
-  apiOrigin: 'http://localhost:4000',
 });
 ```
 

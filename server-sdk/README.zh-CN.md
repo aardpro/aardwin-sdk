@@ -1,6 +1,6 @@
 # @aardwin/auth-server
 
-[English](https://github.com/aardpro/aardwin-sdk/blob/main/server-sdk/README.md) | **中文**
+[English](./README.md) | **中文**
 
 框架无关的 aardwin 服务端 API 客户端。用一次性 OAuth 码换取最终用户身份，并为浏览器端 `<aardwin-account>` 组件铸造账号接管码（handoff code）。零运行时依赖；纯 ESM；Node ≥ 18 / Bun。
 
@@ -22,7 +22,7 @@ npm install @aardwin/auth-server
 
 ## 2. 快速开始（客户端实例）
 
-任何会发起多次换码调用（或未来会使用其他 SDK 方法）的进程，优先使用 `createAardwinClient()` —— 它在闭包里保存 `siteId` / `clientSecret` / `apiOrigin` / `timeoutMs` / `fetch`，避免重复传参。
+任何会发起多次换码调用（或未来会使用其他 SDK 方法）的进程，优先使用 `createAardwinClient()` —— 它在闭包里保存 `siteId` / `clientSecret` / `timeoutMs` / `fetch`，避免重复传参。
 
 ```ts
 import { createAardwinClient } from '@aardwin/auth-server';
@@ -30,7 +30,6 @@ import { createAardwinClient } from '@aardwin/auth-server';
 const client = createAardwinClient({
   siteId: 'YOUR_SITE_ID',
   clientSecret: process.env.AARDWIN_CLIENT_SECRET, // 仅服务端；永远不要下发到浏览器
-  // apiOrigin: 'https://api.aard.win', // 默认值；本地开发时可覆盖
   // timeoutMs: 8000,                  // 默认值；0 / Infinity 表示禁用
 });
 
@@ -221,8 +220,8 @@ async function createSession(userId: string): Promise<{ token: string; ttl: numb
 | `POST /api/oauth/token`   | 你的后端 → api | `{ site_id, code, client_secret }`（JSON，`client_secret_post`） | `{ user_id, provider, email?, nickname?, avatar? }`（envelope `code: 0`） |
 | `POST /api/account/handoff` | 你的后端 → api | `{ site_id, user_id, client_secret }`（JSON）                  | `{ code, expires_in }`（envelope `code: 0`）           |
 
-默认 origin 是 `https://api.aard.win`（aardwin 的 **api**，不是 bff）。完整的流程表（provider 列表、authorize 重定向、callback）以及两个 SDK 的 origin 覆盖参数对照，见浏览器 SDK 指南：
-`https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/SDK.md`。
+默认 origin 是 `https://api.aard.win`（aardwin 的 **api**，不是 bff）。完整的流程表（provider 列表、authorize 重定向、callback）以及两个 SDK 的对照，见浏览器 SDK 指南：
+[../browser-sdk/SDK.md](../browser-sdk/SDK.md)。
 
 ---
 
@@ -254,7 +253,7 @@ const { code, expiresIn } = await client.createAccountHandoff({
 <aardwin-account site-id="YOUR_SITE_ID" code="ONE_TIME_CODE"></aardwin-account>
 ```
 
-`client.createAccountHandoff({ userId })` 对其他所有字段（`siteId`、`clientSecret`、`apiOrigin`、`timeoutMs`、`signal`、`fetch`）回退到客户端默认值；只有 `userId` 必填。
+`client.createAccountHandoff({ userId })` 对其他所有字段（`siteId`、`clientSecret`、`timeoutMs`、`signal`、`fetch`）回退到客户端默认值；只有 `userId` 必填。
 
 独立单次调用形式：
 

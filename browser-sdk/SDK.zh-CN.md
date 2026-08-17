@@ -1,8 +1,8 @@
 # aardwin browser SDK — 完整接入指南
 
-[English](https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/SDK.md) | **中文**
+[English](./SDK.md) | **中文**
 
-[browser-sdk README](https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/README.md) 是简短入门，本文档是完整接入指南：OAuth2 authorization-code 流程如何工作、`<aardwin-auth>` 与 `<aardwin-account>` 的行为，以及你的后端回调路由必须实现哪些步骤。
+[browser-sdk README](./README.md) 是简短入门，本文档是完整接入指南：OAuth2 authorization-code 流程如何工作、`<aardwin-auth>` 与 `<aardwin-account>` 的行为，以及你的后端回调路由必须实现哪些步骤。
 
 ---
 ## 流程时序
@@ -130,7 +130,7 @@ async function createSession(userId: string): Promise<{ token: string; ttl: numb
 }
 ```
 
-后端换码 helper 在另一个包 [`@aardwin/auth-server`](https://github.com/aardpro/aardwin-sdk/blob/main/server-sdk/README.md) 中。browser 包不再提供服务端入口。
+后端换码 helper 在另一个包 [`@aardwin/auth-server`](../server-sdk/README.md) 中。browser 包不再提供服务端入口。
 
 ---
 ## state 校验是你的责任
@@ -163,10 +163,7 @@ async function createSession(userId: string): Promise<{ token: string; ttl: numb
 |------|------|------|------|
 | `site-id` | 是 | `string` | 在 aardwin 控制台创建的站点 ID |
 | `i18n` | 否 | `'zh' \| 'en'` | 显式指定语言；省略或非法值时按 `navigator.language` 检测，默认英文 |
-| `api-origin` | 否 | `string` | 覆盖 API 入口地址，本地开发时指向 `http://localhost:4000` |
 | `callback-path` | 否 | `string` | 显式 OAuth / email 回调路径；非空时 SDK 会在 bff 跳转 URL 中追加 `return_url`，空串/缺省时不发，bff 回退站点注册 callbackUrl |
-
-`api-origin` 只影响 `GET /api/providers` 与 provider 的 `authorizeEndpoint` 为空时的 `/authorize` 兜底。它**不会**重写每个 provider 的 `authorizeEndpoint`；实际扫码地址来自 API 响应（平台管理员按 provider 配置的 `bff_origin`）。
 
 React 类型补全可 opt-in：`import '@aardwin/auth-browser/react.d.ts';`（React 18 / React 19 / Next.js 15）。Preact、Solid 或 Vue JSX 消费者请自行添加 `JSX.IntrinsicElements` 声明。
 
@@ -209,7 +206,6 @@ const { code, expiresIn } = await client.createAccountHandoff({ userId: session.
 | `site-id` | 是 | 站点 ID；决定可绑定的 provider |
 | `code` | 是 | `createAccountHandoff()` 返回的一次性账号接管码（handoff code）。如果 `sessionStorage` 已有 token，则不消费该 code |
 | `i18n` | 否 | `'zh' \| 'en'`，默认按 `navigator.language` 检测 |
-| `api-origin` | 否 | 覆盖 API 入口，默认 `API_ORIGIN`（`https://api.aard.win`） |
 
 ### 生命周期
 
@@ -247,39 +243,6 @@ el.addEventListener('aardwin:account-error', (e) => {
 你不需要自己处理这些路由。按钮点击会跳转到 `${authorizeEndpoint}/authorize?site_id=&provider=&state=&lang=`（`email` 走专用入口）。换码始终走 API origin 的 `POST /api/oauth/token`。
 
 ---
-## 本地开发与 origin 覆盖
-
-本地开发时，把浏览器 SDK 指向本地 API，同时把后端的 `exchangeCode()` 指向同一 API。
-
-浏览器 SDK（`<aardwin-auth>` 与 `<aardwin-account>`）：
-
-```html
-<aardwin-auth site-id="YOUR_SITE_ID" api-origin="http://localhost:4000"></aardwin-auth>
-```
-
-后端 server SDK（`@aardwin/auth-server`）：
-
-```ts
-const client = createAardwinClient({
-  siteId: 'YOUR_SITE_ID',
-  clientSecret: process.env.AARDWIN_CLIENT_SECRET,
-  apiOrigin: 'http://localhost:4000',
-});
-```
-
-### origin 覆盖参数对照
-
-| 层级 | 参数 / 属性 | 默认值 | 覆盖范围 |
-|------|------------|--------|---------|
-| 浏览器 SDK | `<aardwin-auth api-origin="…">` | `https://api.aard.win` | `GET /api/providers`；`authorizeEndpoint` 为空时的 `/authorize` 兜底 |
-| 浏览器 SDK | `<aardwin-account api-origin="…">` | `https://api.aard.win` | 账号 API（`/api/account/session`、`/api/account/identities`、`/api/account/link/*`） |
-| Server SDK | `createAardwinClient({ apiOrigin })` | `https://api.aard.win` | `POST /api/oauth/token` 与 `POST /api/account/handoff` |
-| Server SDK | `exchangeCode({ apiOrigin })` | `https://api.aard.win` | `POST /api/oauth/token` |
-| Server SDK | `createAccountHandoff({ apiOrigin })` | `https://api.aard.win` | `POST /api/account/handoff` |
-
-完整本地开发流程见 [LOCALDEV.md](https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/LOCALDEV.md)。
-
----
 ## 接口契约
 
 | 接口 | 调用方 | 用途 |
@@ -298,7 +261,7 @@ const client = createAardwinClient({
 
 ### 按钮没有渲染
 
-打开浏览器 DevTools 的 Network 面板，检查 `GET {apiOrigin}/api/providers?site_id=...`：
+打开浏览器 DevTools 的 Network 面板，检查 `GET /api/providers?site_id=...`：
 
 - 确认响应状态为 **200**；
 - 确认响应体中 `data.providers` 数组非空。数组为空表示该站点在控制台未配置任何 provider。
@@ -353,8 +316,8 @@ aardwin-auth::part(button) {
 ---
 ## 相关链接
 
-- [browser-sdk README](https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/README.md)
-- [server-sdk README](https://github.com/aardpro/aardwin-sdk/blob/main/server-sdk/README.md)
-- [LOCALDEV.md](https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/LOCALDEV.md)
-- [RELEASING.md](https://github.com/aardpro/aardwin-sdk/blob/main/RELEASING.md)
+- [browser-sdk README](./README.md)
+- [server-sdk README](../server-sdk/README.md)
+- [LOCALDEV.md](./LOCALDEV.md)
+- [RELEASING.md](../RELEASING.md)
 - [https://aard.win](https://aard.win) —— 开发者控制台

@@ -8,7 +8,7 @@
 
 One OAuth login for WeChat, Google, Outlook, GitHub, Discord and email OTP. Drop the `<aardwin-auth>` Web Component into any framework, verify the callback server-side, and every aardwin user can sign in to your app — one account across every product that embeds it. Console: **https://aard.win**
 
-[![SDK demo](preview/nextjs-snapshot.webp)](https://aard.win/sdk-demo.mp4)
+[![SDK demo](preview/nextjs-snapshot.webp)](./preview/demo.mp4)
 
 ▶ 21s demo — same login card in a Next.js app and a Vue app, then the OAuth callback round-trip.
 
@@ -20,8 +20,8 @@ One OAuth login for WeChat, Google, Outlook, GitHub, Discord and email OTP. Drop
     <th>Vue app</th>
   </tr>
   <tr>
-    <td><img src="preview/nextjs-snapshot.webp" alt="aardwin login card rendered in a Next.js app"></td>
-    <td><img src="preview/vuejs-snapshot.webp" alt="aardwin login card rendered in a Vue app"></td>
+    <td><img src="preview/nextjs-snapshot.webp" alt="aardwin login card rendered in a Next.js app" width="360"></td>
+    <td><img src="preview/vuejs-snapshot.webp" alt="aardwin login card rendered in a Vue app" width="360"></td>
   </tr>
 </table>
 

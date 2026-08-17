@@ -1,9 +1,9 @@
 # @aardwin/auth-browser
 
 [![npm version](https://img.shields.io/npm/v/@aardwin/auth-browser)](https://www.npmjs.com/package/@aardwin/auth-browser)
-[![MIT license](https://img.shields.io/npm/l/@aardwin/auth-browser)](https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/LICENSE)
+[![MIT license](https://img.shields.io/npm/l/@aardwin/auth-browser)](./LICENSE)
 
-**English** | [中文](https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/README.zh-CN.md)
+**English** | [中文](./README.zh-CN.md)
 
 Embeddable `<aardwin-auth>` Web Component for OAuth login (WeChat, Google, Outlook, GitHub, Discord, email OTP): Shadow DOM, zero dependencies, works in any framework. Also ships `<aardwin-account>` for inline identity management (bind / unbind providers).
 
@@ -38,7 +38,6 @@ The element fetches your site's provider list from the aardwin API and renders o
 | --- | --- | --- |
 | `site-id` | yes | Site ID created in the [aard.win console](https://aard.win); decides which provider buttons are fetched |
 | `i18n` | no | `'zh' \| 'en'`; omitted → auto-detect via `navigator.language`, English default |
-| `api-origin` | no | Override the API entry (default `https://api.aard.win`), e.g. `http://localhost:4000` for local dev |
 | `callback-path` | no | Explicit callback path (e.g. `/callback`); when set, the SDK appends `return_url` to the redirect; omitted → the bff falls back to your registered callbackUrl |
 
 `<aardwin-account>`:
@@ -48,7 +47,6 @@ The element fetches your site's provider list from the aardwin API and renders o
 | `site-id` | yes | Site ID; determines which providers can be bound |
 | `code` | yes | One-time handoff code minted server-side via `createAccountHandoff()` (60 s, single-use) |
 | `i18n` | no | `'zh' \| 'en'`; omitted → auto-detect |
-| `api-origin` | no | Override the API entry, same as above |
 
 React projects: `import '@aardwin/auth-browser/react.d.ts'` for JSX typings (React 18 / 19, Next.js 15).
 
@@ -60,17 +58,17 @@ React projects: `import '@aardwin/auth-browser/react.d.ts'` for JSX typings (Rea
 
 ## What it looks like
 
-![aardwin login card in a Next.js app](https://raw.githubusercontent.com/aardpro/aardwin-sdk/main/preview/nextjs-snapshot.webp)
-![aardwin login card in a Vue app](https://raw.githubusercontent.com/aardpro/aardwin-sdk/main/preview/vuejs-snapshot.webp)
+![aardwin login card in a Next.js app](../preview/nextjs-snapshot.webp)
+![aardwin login card in a Vue app](../preview/vuejs-snapshot.webp)
 
-▶ Demo video: [https://aard.win/sdk-demo.mp4](https://aard.win/sdk-demo.mp4)
+▶ Demo video: [../preview/demo.mp4](../preview/demo.mp4)
 
 ## Going deeper
 
-- Full integration guide (callback route, contract reference, troubleshooting): [SDK.md](https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/SDK.md)
-- Server-side code exchange: [`@aardwin/auth-server`](https://github.com/aardpro/aardwin-sdk/blob/main/server-sdk/README.md)
-- Repo & examples: [aardpro/aardwin-sdk](https://github.com/aardpro/aardwin-sdk)
+- Full integration guide (callback route, contract reference, troubleshooting): [SDK.md](./SDK.md)
+- Server-side code exchange: [`@aardwin/auth-server`](../server-sdk/README.md)
+- Repo & examples: [aardpro/aardwin-sdk](..)
 
 ## License
 
-[MIT](https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/LICENSE)
+[MIT](./LICENSE)

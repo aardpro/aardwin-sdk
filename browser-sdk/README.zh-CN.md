@@ -1,9 +1,9 @@
 # @aardwin/auth-browser
 
 [![npm version](https://img.shields.io/npm/v/@aardwin/auth-browser)](https://www.npmjs.com/package/@aardwin/auth-browser)
-[![MIT license](https://img.shields.io/npm/l/@aardwin/auth-browser)](https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/LICENSE)
+[![MIT license](https://img.shields.io/npm/l/@aardwin/auth-browser)](./LICENSE)
 
-**中文** | [English](https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/README.md)
+**中文** | [English](./README.md)
 
 可嵌入的 `<aardwin-auth>` OAuth 登录 Web Component（微信、Google、Outlook、GitHub、Discord、邮箱验证码）：Shadow DOM、零依赖，任意框架可用。同包附带 `<aardwin-account>` 身份管理组件（内联绑定 / 解绑）。
 
@@ -38,7 +38,6 @@ import '@aardwin/auth-browser'; // side-effect：注册 <aardwin-auth> 与 <aard
 | --- | --- | --- |
 | `site-id` | 是 | 在 [aard.win 控制台](https://aard.win) 创建的站点 ID，决定拉取哪些 provider 按钮 |
 | `i18n` | 否 | `'zh' \| 'en'`；缺省按 `navigator.language` 自动检测，默认英文 |
-| `api-origin` | 否 | 覆盖 API 入口（默认 `https://api.aard.win`），本地开发可指向 `http://localhost:4000` |
 | `callback-path` | 否 | 显式指定回调路径（如 `/callback`）；非空时 SDK 在跳转 URL 中追加 `return_url`，缺省时 bff 回退站点注册的 callbackUrl |
 
 `<aardwin-account>`：
@@ -48,7 +47,6 @@ import '@aardwin/auth-browser'; // side-effect：注册 <aardwin-auth> 与 <aard
 | `site-id` | 是 | 站点 ID；决定可绑定的 provider |
 | `code` | 是 | 服务端用 `createAccountHandoff()` 铸造的一次性 handoff code（60 秒、单次使用） |
 | `i18n` | 否 | `'zh' \| 'en'`；缺省自动检测 |
-| `api-origin` | 否 | 覆盖 API 入口，同上 |
 
 React 项目：`import '@aardwin/auth-browser/react.d.ts'` 获得 JSX 类型声明（兼容 React 18 / 19、Next.js 15）。
 
@@ -60,17 +58,17 @@ React 项目：`import '@aardwin/auth-browser/react.d.ts'` 获得 JSX 类型声�
 
 ## 效果预览
 
-![Next.js 应用中的 aardwin 登录卡片](https://raw.githubusercontent.com/aardpro/aardwin-sdk/main/preview/nextjs-snapshot.webp)
-![Vue 应用中的 aardwin 登录卡片](https://raw.githubusercontent.com/aardpro/aardwin-sdk/main/preview/vuejs-snapshot.webp)
+![Next.js 应用中的 aardwin 登录卡片](../preview/nextjs-snapshot.webp)
+![Vue 应用中的 aardwin 登录卡片](../preview/vuejs-snapshot.webp)
 
-▶ 演示视频：[https://aard.win/sdk-demo.mp4](https://aard.win/sdk-demo.mp4)
+▶ 演示视频：[../preview/demo.mp4](../preview/demo.mp4)
 
 ## 深入阅读
 
-- 完整集成指南（回调路由、接口契约、排障）：[SDK.md](https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/SDK.md)
-- 服务端换码：[`@aardwin/auth-server`](https://github.com/aardpro/aardwin-sdk/blob/main/server-sdk/README.md)
-- 仓库与示例：[aardpro/aardwin-sdk](https://github.com/aardpro/aardwin-sdk)
+- 完整集成指南（回调路由、接口契约、排障）：[SDK.md](./SDK.md)
+- 服务端换码：[`@aardwin/auth-server`](../server-sdk/README.md)
+- 仓库与示例：[aardpro/aardwin-sdk](..)
 
 ## 许可证
 
-[MIT](https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/LICENSE)
+[MIT](./LICENSE)

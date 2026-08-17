@@ -1,8 +1,8 @@
 # aardwin browser SDK — full integration guide
 
-**English** | [中文](https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/SDK.zh-CN.md)
+**English** | [中文](./SDK.zh-CN.md)
 
-The [browser-sdk README](https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/README.md) is the short onboarding. This file is the complete integration guide: how the OAuth2 authorization-code flow works, what `<aardwin-auth>` and `<aardwin-account>` do, and exactly what your backend callback route must implement.
+The [browser-sdk README](./README.md) is the short onboarding. This file is the complete integration guide: how the OAuth2 authorization-code flow works, what `<aardwin-auth>` and `<aardwin-account>` do, and exactly what your backend callback route must implement.
 
 ---
 ## How the flow works
@@ -130,7 +130,7 @@ async function createSession(userId: string): Promise<{ token: string; ttl: numb
 }
 ```
 
-The backend exchange helper lives in the separate package [`@aardwin/auth-server`](https://github.com/aardpro/aardwin-sdk/blob/main/server-sdk/README.md). The browser package no longer ships a server entry.
+The backend exchange helper lives in the separate package [`@aardwin/auth-server`](../server-sdk/README.md). The browser package no longer ships a server entry.
 
 ---
 ## State verification is your responsibility
@@ -163,10 +163,7 @@ Only `site-id` is required.
 |-----------|----------|------|-------------|
 | `site-id` | yes | `string` | Site ID created in the aardwin console |
 | `i18n` | no | `'zh' \| 'en'` | Explicit language. Omitted/invalid falls back to `navigator.language` detection; defaults to English |
-| `api-origin` | no | `string` | Override the API entry origin. Use `http://localhost:4000` for local dev |
 | `callback-path` | no | `string` | Explicit OAuth/email callback path. Non-empty appends `return_url` to the bff redirect URL; empty/absent falls back to the registered callbackUrl |
-
-`api-origin` only affects `GET /api/providers` and the `/authorize` fallback base when a provider's `authorizeEndpoint` is empty. It does **not** rewrite each provider's `authorizeEndpoint`; those come from the API response (`bff_origin` configured by platform admins per provider).
 
 For React type completion, opt in with `import '@aardwin/auth-browser/react.d.ts';` (React 18 / React 19 / Next.js 15). For Preact, Solid, or Vue JSX, add your own `JSX.IntrinsicElements` declaration.
 
@@ -209,7 +206,6 @@ const { code, expiresIn } = await client.createAccountHandoff({ userId: session.
 | `site-id` | yes | Site ID; decides which providers can be bound |
 | `code` | yes | One-time handoff code from `createAccountHandoff()`. Not consumed if a token is already cached in `sessionStorage` |
 | `i18n` | no | `'zh' \| 'en'`, defaults to `navigator.language` detection |
-| `api-origin` | no | Override the API entry origin, defaults to `API_ORIGIN` (`https://api.aard.win`) |
 
 ### Lifecycle
 
@@ -247,39 +243,6 @@ The component does not hardcode provider URLs. It calls `GET /api/providers?site
 You do not need to handle this routing yourself. The button click redirects to `${authorizeEndpoint}/authorize?site_id=&provider=&state=&lang=` (or the email-specific entry point for `email`). The code exchange always goes to `POST /api/oauth/token` on the API origin.
 
 ---
-## Local dev & origin overrides
-
-For local development, point the browser SDK at a local API and point your backend `exchangeCode()` at the same API.
-
-Browser SDK (`<aardwin-auth>` and `<aardwin-account>`):
-
-```html
-<aardwin-auth site-id="YOUR_SITE_ID" api-origin="http://localhost:4000"></aardwin-auth>
-```
-
-Backend server SDK (`@aardwin/auth-server`):
-
-```ts
-const client = createAardwinClient({
-  siteId: 'YOUR_SITE_ID',
-  clientSecret: process.env.AARDWIN_CLIENT_SECRET,
-  apiOrigin: 'http://localhost:4000',
-});
-```
-
-### Origin-override parameter对照
-
-| Layer | Parameter / attribute | Default | What it overrides |
-|-------|----------------------|---------|-----------------|
-| Browser SDK | `<aardwin-auth api-origin="…">` | `https://api.aard.win` | `GET /api/providers`; `/authorize` fallback when `authorizeEndpoint` is empty |
-| Browser SDK | `<aardwin-account api-origin="…">` | `https://api.aard.win` | Account APIs (`/api/account/session`, `/api/account/identities`, `/api/account/link/*`) |
-| Server SDK | `createAardwinClient({ apiOrigin })` | `https://api.aard.win` | `POST /api/oauth/token` and `POST /api/account/handoff` |
-| Server SDK | `exchangeCode({ apiOrigin })` | `https://api.aard.win` | `POST /api/oauth/token` |
-| Server SDK | `createAccountHandoff({ apiOrigin })` | `https://api.aard.win` | `POST /api/account/handoff` |
-
-For the full local dev walkthrough, see [LOCALDEV.md](https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/LOCALDEV.md).
-
----
 ## Contract reference
 
 | Endpoint | Who calls | Purpose |
@@ -298,7 +261,7 @@ For the full local dev walkthrough, see [LOCALDEV.md](https://github.com/aardpro
 
 ### Buttons do not render
 
-Open the browser DevTools Network panel and check `GET {apiOrigin}/api/providers?site_id=...`:
+Open the browser DevTools Network panel and check `GET /api/providers?site_id=...`:
 
 - Confirm the response status is **200**.
 - Confirm the response body has a non-empty `data.providers` array. An empty array means the site has no providers configured in the console.
@@ -353,8 +316,8 @@ aardwin-auth::part(button) {
 ---
 ## Links
 
-- [browser-sdk README](https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/README.md)
-- [server-sdk README](https://github.com/aardpro/aardwin-sdk/blob/main/server-sdk/README.md)
-- [LOCALDEV.md](https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/LOCALDEV.md)
-- [RELEASING.md](https://github.com/aardpro/aardwin-sdk/blob/main/RELEASING.md)
+- [browser-sdk README](./README.md)
+- [server-sdk README](../server-sdk/README.md)
+- [LOCALDEV.md](./LOCALDEV.md)
+- [RELEASING.md](../RELEASING.md)
 - [https://aard.win](https://aard.win) — developer portal

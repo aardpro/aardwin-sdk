@@ -155,7 +155,7 @@ so a cross-host callback will fail state verification.
 
 `types/aardwin-elements.d.ts` registers `<aardwin-auth>` and `<aardwin-account>` in
 Vue's `GlobalComponents` so `vue-tsc` recognizes the kebab-case attributes
-(`site-id`, `i18n`, `api-origin`, `callback-path`, `code`).
+(`site-id`, `i18n`, `callback-path`, `code`).
 
 ## Verification
 
