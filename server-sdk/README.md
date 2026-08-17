@@ -1,5 +1,7 @@
 # @aardwin/auth-server
 
+**English** | [中文](https://github.com/aardpro/aardwin-sdk/blob/main/server-sdk/README.zh-CN.md)
+
 Framework-agnostic aardwin API client for server-side code. Exchanges one-time OAuth codes for
 end-user identity, and mints account-handoff codes for the browser-side `<aardwin-account>`
 component. Zero runtime dependencies; ESM-only; Node ≥ 18 / Bun.
@@ -245,8 +247,9 @@ This package touches two endpoints:
 | `POST /api/account/handoff` | your backend → api | `{ site_id, user_id, client_secret }` (JSON)                  | `{ code, expires_in }` (envelope `code: 0`)           |
 
 The default origin is `https://api.aard.win` (the aardwin **api**, not the bff). For the full
-flow table (provider list, authorize redirect, callback) see the browser SDK's `SDK.md`; for a
-side-by-side of both SDKs' origin-override params, see [technical-architecture.md §3.4](../../docs/technical-architecture.md).
+flow table (provider list, authorize redirect, callback) and the side-by-side of both SDKs'
+origin-override params, see the browser SDK guide at
+`https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/SDK.md`.
 
 ---
 
