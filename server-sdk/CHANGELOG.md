@@ -19,3 +19,4 @@
 - README state-verify 示例改用 `crypto.timingSafeEqual`（替代手写常量时间比较，避免长度泄漏）。
 ### Added
 - 文档：state-verify 调试指引与 cookie 删除示例。
+## 0.3.5 - 2026-08-17n- Docs: zh-CN README, drop broken private-repo link
