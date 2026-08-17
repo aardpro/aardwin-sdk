@@ -1,144 +1,73 @@
-# @aardwin/auth-server
+# aardwin browser SDK — 完整接入指南
 
 [English](./README.md) | **中文**
 
-框架无关的 aardwin 服务端 API 客户端。用一次性 OAuth 码换取最终用户身份，并为浏览器端 `<aardwin-account>` 组件铸造账号接管码（handoff code）。零运行时依赖；纯 ESM；Node ≥ 18 / Bun。
-
-本 SDK 的设计目标是：未来新增方法时不会改变任何现有公开签名（见 [10. Roadmap](#10-roadmap-非承诺)）。
-
-> 与浏览器包 `@aardwin/auth-browser`（`<aardwin-auth>` Web Component）配对使用，构成完整的 OAuth2 authorization-code 流程。本 server SDK 是位于你后端的另一半。
+[browser-sdk README](../browser-sdk/README.md) 是简短入门，本文档是完整接入指南：OAuth2 authorization-code 流程如何工作、`<aardwin-auth>` 与 `<aardwin-account>` 的行为，以及你的后端回调路由必须实现哪些步骤。
 
 ---
+## 流程时序
 
-## 1. 安装
+```text
+  ┌─────────────────┐
+  │   你的登录页     │  <aardwin-auth site-id="…">
+  │（与 callbackUrl │  请求 GET /api/providers?site_id=…
+  │   同 host）     │  按 provider 渲染按钮
+  └────────┬────────┘
+           │ 点击
+           │ 设置 aard_win_auth_state cookie（SameSite=Lax）
+           ▼
+  ┌─────────────────┐      ┌──────────────┐      ┌──────────────┐
+  │ aardwin bff     │ ──▶  │   provider   │ ──▶  │  provider    │
+  │ /authorize      │ 扫码 │（微信/谷歌等）│ 授权 │  返回 code   │
+  └────────┬────────┘      └──────────────┘      └──────────────┘
+           │ 302 跳回你注册的 callbackUrl
+           │ ?code=<一次性码>&state=<随机数>
+           ▼
+  ┌─────────────────┐
+  │  你的回调路由    │  1. 读取 aard_win_auth_state cookie
+  │                 │  2. timingSafeEqual 比较 cookie 与 query 的 state
+  │                 │  3. POST /api/oauth/token {site_id,code,client_secret}
+  │                 │  4. 生成你自己的 session，跳回应用
+  └─────────────────┘
+```
+
+流程中**没有 iframe**，也**没有 postMessage**。provider 扫码通过整页跳转完成，一次性码交到你的后端回调路由。你的路由必须校验 `state` 随机数，并用 `@aardwin/auth-server` 换码。
+
+---
+## 快速开始
+
+### 1. 在 https://aard.win 注册站点
+
+你会收到 / 配置：
+
+- `siteId` —— 公开，放在 `<aardwin-auth>` 标签里。
+- `clientSecret` —— 仅服务端使用，用于 `exchangeCode()`。
+- 站点的 **provider 列表**（wechat / google / github / outlook / discord / email）。
+- 你的 **callbackUrl** —— 接收 `?code=&state=` 的路由。
+
+provider 列表与 callbackUrl 存在站点记录中；标签会动态拉取 provider 列表。
+
+### 2. 安装
 
 ```bash
-bun add @aardwin/auth-server
-# 或
-npm install @aardwin/auth-server
+npm install @aardwin/auth-browser
 ```
 
----
-
-## 2. 快速开始（客户端实例）
-
-任何会发起多次换码调用（或未来会使用其他 SDK 方法）的进程，优先使用 `createAardwinClient()` —— 它在闭包里保存 `siteId` / `clientSecret` / `timeoutMs` / `fetch`，避免重复传参。
-
 ```ts
-import { createAardwinClient } from '@aardwin/auth-server';
-
-const client = createAardwinClient({
-  siteId: 'YOUR_SITE_ID',
-  clientSecret: process.env.AARDWIN_CLIENT_SECRET, // 仅服务端；永远不要下发到浏览器
-  // timeoutMs: 8000,                  // 默认值；0 / Infinity 表示禁用
-});
-
-// 当回调路由收到 ?code=...&state=... 后：
-const user = await client.exchangeCode({ code });
-// user = { user_id, provider, email?, nickname?, avatar? }
-
-const session = await createSession(user.user_id); // 你自己的 session
+import '@aardwin/auth-browser'; // 注册 <aardwin-auth> 与 <aardwin-account>
 ```
 
-`client.exchangeCode(input)` 对 `input` 中省略的字段回退到客户端默认值；每次调用必填的字段只有 `code`，且它会覆盖客户端默认值。
+### 3. 在登录页放置标签
 
----
-
-## 3. 单次调用（独立函数）
-
-对于 serverless 处理函数 / 只发起一次换码的脚本，可以直接内联所有参数调用 `exchangeCode()`：
-
-```ts
-import { exchangeCode } from '@aardwin/auth-server';
-
-const user = await exchangeCode({
-  code,
-  siteId: 'YOUR_SITE_ID',
-  clientSecret: process.env.AARDWIN_CLIENT_SECRET,
-});
+```html
+<aardwin-auth site-id="YOUR_SITE_ID"></aardwin-auth>
 ```
 
-两种调用方式走同一个内部 HTTP 路径；按你的调用点选择即可。
+### 4. 实现回调路由
 
----
-
-## 4. 错误处理
-
-`exchangeCode()` 在**所有**失败路径上都会抛出 `AardwinError`（`Error` 的子类）。用 `instanceof` 分支处理：
+以下示例是框架无关的 Web Fetch API 版本。复制并适配到你的框架（Astro / Next.js / Hono / Express 等）。
 
 ```ts
-import { exchangeCode, AardwinError } from '@aardwin/auth-server';
-
-try {
-  const user = await exchangeCode({ code, siteId, clientSecret });
-} catch (e) {
-  if (e instanceof AardwinError) {
-    // 下面矩阵说明了每一行会填充哪些字段
-  } else {
-    throw e; // 重新抛出未知错误
-  }
-}
-```
-
-### `AardwinError` 字段矩阵
-
-`AardwinError` 暴露以下字段（与 `src/aardwin-error.ts` 逐字段对应）：
-
-| 字段      | 类型                              | 是否始终存在 |
-| ---------- | --------------------------------- | --------------- |
-| `message`  | `string`                          | 是             |
-| `name`     | `'AardwinError'`                  | 是             |
-| `code`     | `number \| undefined`             | 否              |
-| `status`   | `number \| undefined`             | 否              |
-| `reason`   | `'timeout' \| 'aborted' \| undefined` | 否          |
-| `cause`    | `unknown`（ES2022 `Error.cause`）  | 否              |
-
-每种失败会填充的字段：
-
-| 失败原因                                   | `code`                | `status`     | `reason`     | `cause`           | `message`                                      |
-| ----------------------------------------- | --------------------- | ------------ | ------------ | ----------------- | ---------------------------------------------- |
-| code 无效 / 过期 / 已消费 / 不匹配 | `40001`               | `400`        | `undefined`  | `undefined`       | envelope message                               |
-| `client_secret` 错误                     | `40002`               | `401`        | `undefined`  | `undefined`       | envelope message                               |
-| `401 unauthorized`（站点不存在）         | `undefined`           | `401`        | `undefined`  | `undefined`       | envelope message                               |
-| `403 origin not allowed`                  | `undefined`           | `403`        | `undefined`  | `undefined`       | envelope message                               |
-| 非 JSON 响应体（如 HTML 502）             | `undefined`           | HTTP status  | `undefined`  | `undefined`       | `aardwin-auth exchange failed: HTTP <s> (non-JSON body)` |
-| 裸网络错误                        | `undefined`           | `undefined`  | `undefined`  | 原始 `Error`  | `aardwin-auth exchange failed: <msg>`         |
-| 默认 8 秒超时触发                 | `undefined`           | `undefined`  | `'timeout'`  | abort `DOMException` | `aardwin-auth exchange timed out`          |
-| 调用方 `signal` 中止                   | `undefined`           | `undefined`  | `'aborted'`  | abort `DOMException` | `aardwin-auth exchange aborted`            |
-
-> `code === 40003`（`CHANNEL_NOT_ENABLED`，见 `EXCHANGE_CODES`）是**保留值** —— 目前 `POST /api/oauth/token` 不会返回它（channel 未启用的检查发生在 bff authorize 流程更早阶段，表现为 `error=channel_not_enabled` 的重定向）。此处仅作前瞻性说明。
-
----
-
-## 5. 超时与中止
-
-`exchangeCode()` 默认使用 **8 秒**超时（通过 `AbortSignal.timeout`），即使上游卡住也能让你的请求返回。两个字段可以调节（既可在客户端选项上设置，也可在每次调用时设置）：
-
-```ts
-await client.exchangeCode({
-  code,
-  timeoutMs: 5000,                     // 覆盖默认 8 秒
-  signal: myAbortController.signal,    // 与调用方传入的 AbortSignal 组合
-});
-
-// 完全禁用默认超时（只依赖调用方 signal，或完全不超时）：
-await client.exchangeCode({ code, timeoutMs: 0 });
-```
-
-调用方的 `signal` 会通过 `AbortSignal.any` 与内部超时组合；谁先触发谁就生效。传 `timeoutMs: 0`（或 `Infinity`）可禁用默认超时。超时时 SDK 抛出 `reason: 'timeout'` 的 `AardwinError`；调用方 signal 中止时抛出 `reason: 'aborted'`。
-
----
-
-## 6. state 校验是你的责任
-
-**本 SDK 不管理 cookie 或 session。** 它只负责换一次性码。你必须在回调路由中自己校验 OAuth `state` 随机数，且只校验一次，以防止登录 CSRF。
-
-下面是一个示意性的、框架无关的参考片段，使用 Web Fetch API（`Request` / `Response` / `Headers`）。它**不是**本包导出的代码 —— 复制并适配到你的框架（Astro / Next.js / Hono / Express 等）。
-
-```ts
-// 示意性参考片段 —— 不是本包导出的代码。
-// 先校验 state 随机数，再换取一次性码。
-
 import { exchangeCode, AardwinError } from '@aardwin/auth-server';
 import { timingSafeEqual } from 'node:crypto';
 
@@ -147,22 +76,23 @@ async function handleCallback(req: Request): Promise<Response> {
   const stateParam = url.searchParams.get('state');
   const code = url.searchParams.get('code');
 
-  // 1. 读取 <aardwin-auth> 标签在跳转前设置的 state cookie。
+  // 1. 读取 <aardwin-auth> 在跳转前设置的 state cookie。
   const cookieHeader = req.headers.get('cookie') ?? '';
   const stateCookie = parseCookie(cookieHeader, 'aard_win_auth_state');
 
-  // 2. 常量时间比较。不匹配 → 400（不要继续调用 exchangeCode）。
+  // 2. 常量时间比较。不匹配 → 400（不要调用 exchangeCode）。
   if (!stateCookie || !code || !safeStateEqual(stateCookie, stateParam)) {
     return new Response('bad state', { status: 400 });
   }
 
-  // 3. 换取一次性码。一次性消费 —— 失败时不要重试。
+  // 3. 用一次性码换身份。一次性消费 —— 失败时不要重试。
   try {
     const user = await exchangeCode({
       code,
       siteId: process.env.AARD_SITE_ID!,
       clientSecret: process.env.AARDWIN_CLIENT_SECRET,
     });
+
     // 4. 生成你自己的 session，设置 session cookie，然后跳转。
     const session = await createSession(user.user_id);
     const res = Response.redirect(new URL('/dashboard', url), 303);
@@ -173,14 +103,12 @@ async function handleCallback(req: Request): Promise<Response> {
     return res;
   } catch (e) {
     if (e instanceof AardwinError) {
-      // 提示用户重新登录（该码已被消费或无效）。
       return new Response('auth failed: ' + e.message, { status: 400 });
     }
     throw e;
   }
 }
 
-// --- 你需要自己实现或从框架里拿的小工具 ---
 function parseCookie(header: string, name: string): string | undefined {
   for (const part of header.split(';')) {
     const [k, ...v] = part.trim().split('=');
@@ -188,105 +116,207 @@ function parseCookie(header: string, name: string): string | undefined {
   }
   return undefined;
 }
-/** 使用 Node 内置 crypto.timingSafeEqual 做常量时间字符串比较。
- *  避免手写循环泄露长度信息。state 是定长 32 字符十六进制随机数，
- *  因此长度判断在实践中不会泄露有效信息。 */
+
 function safeStateEqual(a: string, b: string): boolean {
   const ab = Buffer.from(a);
   const bb = Buffer.from(b);
-  if (ab.length !== bb.length) return false; // 防护：timingSafeEqual 在长度不同时会抛错
+  if (ab.length !== bb.length) return false;
   return timingSafeEqual(ab, bb);
 }
+
 async function createSession(userId: string): Promise<{ token: string; ttl: number }> {
-  // ... 你自己的 session 存储 ...
+  // ... 你的 session 存储 ...
   return { token: '...', ttl: 86400 };
 }
 ```
 
----
-
-## 7. 重试策略 —— 不要重试
-
-`exchangeCode()` 是**一次性**调用。api 会原子性地消费一次性码（`UPDATE ... WHERE consumed_at IS NULL RETURNING`）；任何非 2xx / 网络错误后重试，都有概率命中「已消费」（`code: 40001`）。失败时，**请提示用户重新登录**（`<aardwin-auth>` 的重定向流程会铸造一个新码）。
+后端换码 helper 在另一个包 [`@aardwin/auth-server`](./README.md) 中。browser 包不再提供服务端入口。
 
 ---
+## state 校验是你的责任
 
-## 8. Contract 参考
+浏览器 SDK 只负责设置 cookie，**不会替你校验 state**。你的回调路由必须：
 
-本包接触两个端点：
+1. 从请求中读取名为 `aard_win_auth_state` 的 cookie。
+2. 用常量时间比较把它和 `?state=` 查询参数对比。
+3. 成功换码后**一次性消费**：删除 cookie。
+4. 不匹配时返回 `400`，不要继续调用 `exchangeCode()`。
 
-| Endpoint                | 调用方           | 请求体                                                          | 成功响应（`data`）                                        |
-| ----------------------- | ------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `POST /api/oauth/token`   | 你的后端 → api | `{ site_id, code, client_secret }`（JSON，`client_secret_post`） | `{ user_id, provider, email?, nickname?, avatar? }`（envelope `code: 0`） |
-| `POST /api/account/handoff` | 你的后端 → api | `{ site_id, user_id, client_secret }`（JSON）                  | `{ code, expires_in }`（envelope `code: 0`）           |
+`<aardwin-auth>` 设置的 cookie 属性：
 
-默认 origin 是 `https://api.aard.win`（aardwin 的 **api**，不是 bff）。完整的流程表（provider 列表、authorize 重定向、callback）以及两个 SDK 的对照，见浏览器 SDK 指南：
-[./SDK.md](./SDK.md)。
+| 属性 | 值 |
+|------|-----|
+| 名称 | `aard_win_auth_state` |
+| Path | `/` |
+| SameSite | `Lax` |
+| Max-Age | `1800` 秒（30 分钟） |
+| Domain | 省略 —— host-only cookie |
+
+因为 cookie 是 host-only，登录页与回调 URL **必须是同一 host**。
 
 ---
+## `<aardwin-auth>` 属性参考表
 
-## 9. 账号接管码（`<aardwin-account>`）
+只有 `site-id` 必填。
 
-`createAccountHandoff()` 铸造一个短时效的一次性码，你把它传给仅浏览器端的 `<aardwin-account>` Web Component（由 `@aardwin/auth-browser` 提供）。该组件是自包含内联渲染（Shadow DOM）—— 列出已绑 identity、解绑、以及渲染剩余 provider 的绑定按钮，模式与 `<aardwin-auth>` 相同；没有托管管理页，也没有 `manageUrl`。用户绑定时组件会把页面自身 URL 作为 `return_url`，OAuth 回调仍会回到该页面。该码一次性消费，60 秒过期，因此应在用户打开账号页时按需铸造，而不是在登录时铸造。
+| 属性 | 必填 | 类型 | 说明 |
+|------|------|------|------|
+| `site-id` | 是 | `string` | 在 aardwin 控制台创建的站点 ID |
+| `i18n` | 否 | `'zh' \| 'en'` | 显式指定语言；省略或非法值时按 `navigator.language` 检测，默认英文 |
+| `callback-path` | 否 | `string` | 显式 OAuth / email 回调路径；非空时 SDK 会在 bff 跳转 URL 中追加 `return_url`，空串/缺省时不发，bff 回退站点注册 callbackUrl |
 
-通过客户端实例调用（推荐 —— 复用你的 `siteId` / `clientSecret`）：
+React 类型补全可 opt-in：`import '@aardwin/auth-browser/react.d.ts';`（React 18 / React 19 / Next.js 15）。Preact、Solid 或 Vue JSX 消费者请自行添加 `JSX.IntrinsicElements` 声明。
+
+CDN / 零构建：
+
+```html
+<script src="/aardwin-auth.iife.js"></script>
+<aardwin-auth site-id="YOUR_SITE_ID"></aardwin-auth>
+```
+
+稳定版 IIFE CDN URL 将在首个稳定构建发布后公布。本地测试时，可把 `dist/aardwin-auth.iife.js` 产物复制到项目的 `public/` 目录。
+
+---
+## `<aardwin-account>` 组件
+
+`<aardwin-account>` 是自包含的内联账号管理 Web Component，在 Shadow DOM 内渲染。它**没有托管的管理页**，也**没有 `manage-url`**。
+
+它需要一个由服务端通过 `@aardwin/auth-server` 的 `createAccountHandoff()` 铸造的一次性账号接管码（handoff code）。该码一次性消费，60 秒过期，因此应在用户打开账号页时按需铸造，而不是在登录时铸造。
+
+```html
+<aardwin-account site-id="YOUR_SITE_ID" code="ONE_TIME_HANDOFF_CODE"></aardwin-account>
+```
 
 ```ts
 import { createAardwinClient } from '@aardwin/auth-server';
 
 const client = createAardwinClient({
-  siteId: process.env.NEXT_PUBLIC_AARDWIN_SITE_ID,
+  siteId: process.env.AARDWIN_SITE_ID,
   clientSecret: process.env.AARDWIN_CLIENT_SECRET, // 仅服务端
 });
 
-// 服务端，针对已登录用户：
-const { code, expiresIn } = await client.createAccountHandoff({
-  userId: user.user_id, // 来自 exchangeCode() 时你生成的 session
-});
-// → 把 `code`（和你的 siteId）传给浏览器，渲染 <aardwin-account site-id code>。
+const { code, expiresIn } = await client.createAccountHandoff({ userId: session.userId });
+// 把 code 传给浏览器，渲染 <aardwin-account site-id code>
 ```
 
-然后在页面（浏览器端）：
+### `<aardwin-account>` 属性
 
-```html
-<!-- 引入 @aardwin/auth-browser 会自动注册 <aardwin-account> 元素 -->
-<aardwin-account site-id="YOUR_SITE_ID" code="ONE_TIME_CODE"></aardwin-account>
-```
+| 属性 | 必填 | 说明 |
+|------|------|------|
+| `site-id` | 是 | 站点 ID；决定可绑定的 provider |
+| `code` | 是 | `createAccountHandoff()` 返回的一次性账号接管码（handoff code）。如果 `sessionStorage` 已有 token，则不消费该 code |
+| `i18n` | 否 | `'zh' \| 'en'`，默认按 `navigator.language` 检测 |
 
-`client.createAccountHandoff({ userId })` 对其他所有字段（`siteId`、`clientSecret`、`timeoutMs`、`signal`、`fetch`）回退到客户端默认值；只有 `userId` 必填。
+### 生命周期
 
-独立单次调用形式：
+1. 解析 access token：优先复用 `sessionStorage` 中缓存的 token（key 为 `aardwin_account_token`）；如无 token 且提供了新鲜 `code`，则调用 `POST /api/account/session {code}` 并保存返回的 `access_token`。
+2. 如果页面 URL 带有 `?pending` 和 `?provider`（从 OAuth provider 回调回来），则携带 Bearer token 调用 `POST /api/account/link/:provider/confirm {pending_token}`，清除 URL 参数，并重新渲染成功/失败反馈条。
+3. 否则渲染当前状态：`GET /api/account/identities`（Bearer）→ 已绑 identity 列表（每项带**解绑**按钮），以及剩余站点 provider 的绑定按钮（排除 `email` 和已绑 provider）。
+
+绑定与解绑行为：
+
+- **绑定**：`POST /api/account/link/:provider {return_url: <本页 URL>}`（Bearer）→ 整页跳转到 provider 的 authorize 端点。OAuth 回调回到同一页并带 `?pending=&provider=`，由步骤 2 处理。
+- **解绑**：在原生 `confirm()` 确认后调用 `DELETE /api/account/identities/:identityId`（Bearer）。
+- **token 过期（401）**：清除缓存 token，显示「会话已过期，请刷新页面」。下次加载 dashboard 时重新铸造 handoff code。
+
+### 错误事件
+
+缺少 `code` 且无缓存 token、建会话 / 拉取 / 绑定 / 解绑失败、以及 token 过期（401）时，都会派发 `aardwin:account-error` 事件（`bubbles: true, composed: true`）。`detail.phase` 区分来源：
 
 ```ts
-import { createAccountHandoff } from '@aardwin/auth-server';
-
-const { code, expiresIn } = await createAccountHandoff({
-  userId,
-  siteId: process.env.NEXT_PUBLIC_AARDWIN_SITE_ID,
-  clientSecret: process.env.AARDWIN_CLIENT_SECRET,
+el.addEventListener('aardwin:account-error', (e) => {
+  console.log(e.detail.phase, e.detail.message);
 });
 ```
 
-**注意：**
+---
+## Provider 路由表
 
-- 这是 server-to-server 调用：`client_secret` 永远不能到达浏览器。在路由处理函数 / server component 里铸造 handoff code，只把 `code` 交给客户端。
-- handoff 与 `exchangeCode()` 一样是一次性的 —— 失败时重新铸造新码，不要重试已消费的码。
-- 失败时同样抛出 `AardwinError`；字段形状与上方的 [错误矩阵](#4-错误处理) 相同。
+组件不会硬编码 provider URL。它调用 `GET /api/providers?site_id=`，接收每个 provider 对应的 `authorizeEndpoint`。平台自动路由：
+
+| Provider | 区域 bff 节点 |
+|----------|--------------|
+| 微信（WeChat） | 国内节点（domestic bff） |
+| Google、GitHub、Outlook、Discord | 海外节点（overseas bff） |
+| email | 由配置的 bff origin 提供 email 入口 |
+
+你不需要自己处理这些路由。按钮点击会跳转到 `${authorizeEndpoint}/authorize?site_id=&provider=&state=&lang=`（`email` 走专用入口）。换码始终走 API origin 的 `POST /api/oauth/token`。
 
 ---
+## 接口契约
 
-## 10. Roadmap（非承诺）
-
-以下方法**正在考虑中**；当它们发布时，现有公开 API（`createAardwinClient`、`client.exchangeCode`、独立 `exchangeCode`、`AardwinError`）**不会**改变。客户端骨架（`createAardwinClient` 返回一个对象，其方法委托给共享的内部 `postJson`）会以新增成员或顶层导出的方式吸收它们：
-
-- `client.getUser(userId)` —— 近期；需要新的公开 api 路由。
-- `verifyWebhookSignature(payload, sig, secret)` —— 纯函数，无 HTTP；新增顶层导出。
-- `verifyToken(token, opts?)` ——  speculative；aardwin 目前不对外发放 JWT。
-
-`AardwinError` 保持为单一的扁平 `Error` 子类；任何未来需要区分错误类型的方法都会继承 `AardwinError`，因此 `instanceof AardwinError` 继续成立。
+| 接口 | 调用方 | 用途 |
+|------|--------|------|
+| `GET /api/providers?site_id=` | 浏览器 SDK → API | 拉取 provider 列表及 `authorizeEndpoint`；校验 Origin |
+| `GET {authorizeEndpoint}/authorize?site_id=&provider=&state=` | 浏览器 → 区域 bff | 渲染扫码页；302→callbackUrl `?code=&state=` |
+| `POST /api/oauth/token` | 你的后端 → API | `{ site_id, code, client_secret }` → 用户身份 |
+| `POST /api/account/session` | 浏览器 SDK → API | `{ code }` → `{ access_token }` |
+| `GET /api/account/identities` | 浏览器 SDK → API | Bearer token → 已绑 identity 列表 |
+| `POST /api/account/link/:provider` | 浏览器 SDK → API | Bearer + `{ return_url }` → 跳转绑定 provider |
+| `POST /api/account/link/:provider/confirm` | 浏览器 SDK → API | Bearer + `{ pending_token }` → 确认绑定 |
+| `DELETE /api/account/identities/:identityId` | 浏览器 SDK → API | Bearer → 解绑 identity |
 
 ---
+## 问题排查
 
-## License
+### 按钮没有渲染
 
-MIT
+打开浏览器 DevTools 的 Network 面板，检查 `GET /api/providers?site_id=...`：
+
+- 确认响应状态为 **200**；
+- 确认响应体中 `data.providers` 数组非空。数组为空表示该站点在控制台未配置任何 provider。
+
+### iframe 或嵌入式 webview 阻止跳转
+
+`<aardwin-auth>` 通过 `window.location.href` 做整页跳转。如果登录页被加载到限制顶层导航的 iframe 或应用内 webview 中，OAuth provider 可能拒绝流程或跳转失败。请把登录页放在顶层浏览上下文。
+
+### state 不匹配
+
+- 检查 `aard_win_auth_state` cookie 是否已设置（`Path=/`、`SameSite=Lax`、`Max-Age=1800`）。
+- 确认 `?state=` 查询参数与 cookie 值完全一致。
+- 确认登录页与回调 URL 在**同一 host**。cookie 是 host-only（无 `Domain` 属性），跨 host 回调无法读取。
+
+### code 已消费（`40001`）
+
+`exchangeCode()` 在一次性码无效、过期、已消费或不匹配时抛出 `code: 40001` 的 `AardwinError`。该码是一次性原子消费，**不要重试**。提示用户重新登录，`<aardwin-auth>` 的重定向流程会生成一个新 code。
+
+### 监听生命周期事件
+
+在 `<aardwin-auth>` 上：
+
+```ts
+const el = document.querySelector('aardwin-auth');
+el.addEventListener('aardwin:error', (e) => console.log(e.detail));
+// { phase: 'render' | 'start', message: string, provider?: string }
+el.addEventListener('aardwin:ready', () => console.log('rendered'));
+```
+
+在 `<aardwin-account>` 上：
+
+```ts
+const el = document.querySelector('aardwin-account');
+el.addEventListener('aardwin:account-error', (e) => console.log(e.detail.phase, e.detail.message));
+```
+
+---
+## 样式覆盖
+
+`<aardwin-auth>` 暴露 `part="button"`：
+
+```css
+aardwin-auth::part(button) {
+  border-radius: 999px;
+  background: #07c160;
+  color: #fff;
+}
+```
+
+`<aardwin-account>` 的绑定按钮同样暴露 `part="button"`。
+
+---
+## 相关链接
+
+- [browser-sdk README](../browser-sdk/README.md)
+- [LOCALDEV.md](../browser-sdk/LOCALDEV.md)
+- [RELEASING.md](../RELEASING.md)
+- [https://aard.win](https://aard.win) —— 开发者控制台

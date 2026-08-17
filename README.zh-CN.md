@@ -25,11 +25,11 @@
 
 ## 快速开始
 
-最短路径 —— 完整指南见 [server-sdk/SDK.md](server-sdk/SDK.md)。
+最短路径 —— 完整指南见 [server-sdk/README.md](server-sdk/README.md)。
 
 1. 在 [aard.win 控制台](https://aard.win) 注册站点 → 拿到 `site-id` + `client-secret`。
 2. 前端：`npm i @aardwin/auth-browser`，在登录页放 `<aardwin-auth site-id="..."></aardwin-auth>` —— 用户选择登录方式后，aard.win 带着一次性 `code` 重定向回来。
-3. 回调路由：校验 `state`，再用 `@aardwin/auth-server` 的 `exchangeCode()` 换取用户身份 → 铸造你自己的会话。完整清单：[server-sdk/SDK.md](server-sdk/SDK.md)。
+3. 回调路由：校验 `state`，再用 `@aardwin/auth-server` 的 `exchangeCode()` 换取用户身份 → 铸造你自己的会话。完整清单：[server-sdk/README.md](server-sdk/README.md)。
 
 ## 包
 
@@ -46,7 +46,7 @@
 ## 链接
 
 - 控制台与文档入口：[https://aard.win](https://aard.win)
-- 浏览器 SDK：[browser-sdk/README.md](./browser-sdk/README.md) · [server-sdk/SDK.md](./server-sdk/SDK.md)
-- 服务端 SDK：[server-sdk/README.md](./server-sdk/README.md)
+- 浏览器 SDK：[browser-sdk/README.md](./browser-sdk/README.md)
+- 完整集成指南：[server-sdk/README.md](./server-sdk/README.md)
 - 许可证：[MIT](./browser-sdk/LICENSE)
 - English docs: [README.md](./README.md)

@@ -1,166 +1,73 @@
-# @aardwin/auth-server
+# aardwin browser SDK — full integration guide
 
 **English** | [中文](./README.zh-CN.md)
 
-Framework-agnostic aardwin API client for server-side code. Exchanges one-time OAuth codes for
-end-user identity, and mints account-handoff codes for the browser-side `<aardwin-account>`
-component. Zero runtime dependencies; ESM-only; Node ≥ 18 / Bun.
-
-It is built so future methods land without changing any existing public signature
-(see [Roadmap](#10-roadmap-non-binding)).
-
-> Pair it with the browser package `@aardwin/auth-browser` (the `<aardwin-auth>` Web Component) for
-> the full OAuth2 authorization-code flow. This server SDK is the half that lives in your
-> backend.
+The [browser-sdk README](../browser-sdk/README.md) is the short onboarding. This file is the complete integration guide: how the OAuth2 authorization-code flow works, what `<aardwin-auth>` and `<aardwin-account>` do, and exactly what your backend callback route must implement.
 
 ---
+## How the flow works
 
-## 1. Install
+```text
+  ┌─────────────────┐
+  │  Your login page │  <aardwin-auth site-id="…">
+  │  (same host as   │  fetches GET /api/providers?site_id=…
+  │   callbackUrl)   │  renders one button per provider
+  └────────┬────────┘
+           │ click
+           │ sets aard_win_auth_state cookie (SameSite=Lax)
+           ▼
+  ┌─────────────────┐      ┌──────────────┐      ┌──────────────┐
+  │ aardwin bff      │ ──▶ │   provider   │ ──▶ │   provider   │
+  │ /authorize       │ scan │  (WeChat/etc)│ auth │  returns code│
+  └────────┬────────┘      └──────────────┘      └──────────────┘
+           │ 302 redirect to your registered callbackUrl
+           │ ?code=<one-time>&state=<nonce>
+           ▼
+  ┌─────────────────┐
+  │ Your callback    │  1. read aard_win_auth_state cookie
+  │ route            │  2. timingSafeEqual(state cookie, state param)
+  │                  │  3. POST /api/oauth/token {site_id,code,client_secret}
+  │                  │  4. mint your own session, redirect to app
+  └─────────────────┘
+```
+
+There is **no iframe** and **no postMessage**. The provider scan happens via a full-page redirect, and the one-time code is handed back to your backend callback route. Your route verifies the `state` nonce and exchanges the code with `@aardwin/auth-server`.
+
+---
+## Quickstart
+
+### 1. Register your site on https://aard.win
+
+You receive / configure:
+
+- `siteId` — public, goes in the `<aardwin-auth>` tag.
+- `clientSecret` — server-only, used in `exchangeCode()`.
+- The **provider list** (wechat / google / github / outlook / discord / email).
+- Your **callbackUrl** — the route that receives `?code=&state=`.
+
+The provider list and callbackUrl are stored on the site record; the tag fetches providers dynamically.
+
+### 2. Install
 
 ```bash
-bun add @aardwin/auth-server
-# or
-npm install @aardwin/auth-server
+npm install @aardwin/auth-browser
 ```
 
----
-
-## 2. Quickstart (client instance)
-
-Prefer `createAardwinClient()` for any process that issues multiple exchanges (or will use future
-SDK methods) — it holds `siteId` / `clientSecret` / `timeoutMs` / `fetch` in a closure
-so you don't repeat them.
-
 ```ts
-import { createAardwinClient } from '@aardwin/auth-server';
-
-const client = createAardwinClient({
-  siteId: 'YOUR_SITE_ID',
-  clientSecret: process.env.AARDWIN_CLIENT_SECRET, // server-only; NEVER ship to the browser
-  // timeoutMs: 8000,                  // default; 0 / Infinity disables
-});
-
-// After your callback route receives ?code=...&state=...:
-const user = await client.exchangeCode({ code });
-// user = { user_id, provider, email?, nickname?, avatar? }
-
-const session = await createSession(user.user_id); // your own session
+import '@aardwin/auth-browser'; // registers <aardwin-auth> and <aardwin-account>
 ```
 
-`client.exchangeCode(input)` falls back to the client's defaults for any field the `input` omits;
-per-call fields (`code` is always required) override the client defaults.
+### 3. Place the tag on your login page
 
----
-
-## 3. One-off (standalone)
-
-For serverless handlers / one-off scripts that issue a single exchange, `exchangeCode()` takes
-everything inline:
-
-```ts
-import { exchangeCode } from '@aardwin/auth-server';
-
-const user = await exchangeCode({
-  code,
-  siteId: 'YOUR_SITE_ID',
-  clientSecret: process.env.AARDWIN_CLIENT_SECRET,
-});
+```html
+<aardwin-auth site-id="YOUR_SITE_ID"></aardwin-auth>
 ```
 
-Both surfaces share the same internal HTTP path; pick whichever fits your call site.
+### 4. Implement the callback route
 
----
-
-## 4. Error handling
-
-`exchangeCode()` throws an `AardwinError` (an `Error` subclass) on **every** failure path.
-Branch with `instanceof`:
+The route is framework-agnostic; the snippet below uses the Web Fetch API. Adapt it to Astro, Next.js, Hono, Express, etc.
 
 ```ts
-import { exchangeCode, AardwinError } from '@aardwin/auth-server';
-
-try {
-  const user = await exchangeCode({ code, siteId, clientSecret });
-} catch (e) {
-  if (e instanceof AardwinError) {
-    // see the matrix below for which fields are populated on which row
-  } else {
-    throw e; // rethrow unknown errors
-  }
-}
-```
-
-### `AardwinError` field matrix
-
-`AardwinError` exposes these fields (matches `src/aardwin-error.ts` field-for-field):
-
-| Field      | Type                              | Always present? |
-| ---------- | --------------------------------- | --------------- |
-| `message`  | `string`                          | yes             |
-| `name`     | `'AardwinError'`                  | yes             |
-| `code`     | `number \| undefined`             | no              |
-| `status`   | `number \| undefined`             | no              |
-| `reason`   | `'timeout' \| 'aborted' \| undefined` | no          |
-| `cause`    | `unknown` (ES2022 `Error.cause`)  | no              |
-
-Which fields are populated by which failure row:
-
-| Failure                                   | `code`                | `status`     | `reason`     | `cause`           | `message`                                      |
-| ----------------------------------------- | --------------------- | ------------ | ------------ | ----------------- | ---------------------------------------------- |
-| Bad / expired / consumed / mismatched code | `40001`               | `400`        | `undefined`  | `undefined`       | envelope message                               |
-| Wrong `client_secret`                     | `40002`               | `401`        | `undefined`  | `undefined`       | envelope message                               |
-| `401 unauthorized` (site missing)         | `undefined`           | `401`        | `undefined`  | `undefined`       | envelope message                               |
-| `403 origin not allowed`                  | `undefined`           | `403`        | `undefined`  | `undefined`       | envelope message                               |
-| Non-JSON body (e.g. HTML 502)             | `undefined`           | HTTP status  | `undefined`  | `undefined`       | `aardwin-auth exchange failed: HTTP <s> (non-JSON body)` |
-| Bare network error                        | `undefined`           | `undefined`  | `undefined`  | original `Error`  | `aardwin-auth exchange failed: <msg>`         |
-| Default 8 s timeout fired                 | `undefined`           | `undefined`  | `'timeout'`  | abort `DOMException` | `aardwin-auth exchange timed out`          |
-| Caller `signal` aborted                   | `undefined`           | `undefined`  | `'aborted'`  | abort `DOMException` | `aardwin-auth exchange aborted`            |
-
-> `code === 40003` (`CHANNEL_NOT_ENABLED`, see `EXCHANGE_CODES`) is **reserved** — not currently
-> emitted by `POST /api/oauth/token` (the channel-not-enabled check happens earlier in the bff
-> authorize flow and surfaces as an `error=channel_not_enabled` redirect). It's documented for
-> forward reference.
-
----
-
-## 5. Timeouts & abort
-
-`exchangeCode()` applies an **8 second** default timeout (via `AbortSignal.timeout`) so your
-request returns even if the upstream is wedged. Two fields let you tune it (both on the client
-options and on each call):
-
-```ts
-await client.exchangeCode({
-  code,
-  timeoutMs: 5000,                     // override the default 8 s
-  signal: myAbortController.signal,    // compose with a caller-supplied AbortSignal
-});
-
-// Disable the default timeout entirely (rely solely on `signal`, or none):
-await client.exchangeCode({ code, timeoutMs: 0 });
-```
-
-The caller's `signal` is composed with the internal timeout via `AbortSignal.any`; whichever
-fires first wins. Pass `timeoutMs: 0` (or `timeoutMs: Infinity`) to disable the default timeout.
-On timeout the SDK throws `AardwinError` with `reason: 'timeout'`; on caller-signal abort it
-throws with `reason: 'aborted'`.
-
----
-
-## 6. State verification is YOUR responsibility
-
-**This SDK does not manage cookies or sessions.** It only exchanges the one-time code. You must
-verify the OAuth `state` nonce yourself in your callback route, exactly once, to prevent login
-CSRF.
-
-Below is an illustrative, framework-agnostic reference snippet expressed in Web Fetch API terms
-(`Request` / `Response` / `Headers`). It is **not** code shipped by this package — copy and adapt
-it to your framework (Astro / Next.js / Hono / Express / etc.).
-
-```ts
-// ILLUSTRATIVE REFERENCE SNIPPET — not exported by this package.
-// Verifies the `state` nonce, then exchanges the one-time code.
-
 import { exchangeCode, AardwinError } from '@aardwin/auth-server';
 import { timingSafeEqual } from 'node:crypto';
 
@@ -169,11 +76,11 @@ async function handleCallback(req: Request): Promise<Response> {
   const stateParam = url.searchParams.get('state');
   const code = url.searchParams.get('code');
 
-  // 1. Read the state cookie that the <aardwin-auth> tag set before the redirect.
+  // 1. Read the state cookie that <aardwin-auth> set before the redirect.
   const cookieHeader = req.headers.get('cookie') ?? '';
   const stateCookie = parseCookie(cookieHeader, 'aard_win_auth_state');
 
-  // 2. Constant-time compare. Mismatch → 400 (do NOT proceed to exchangeCode).
+  // 2. Constant-time compare. Mismatch → 400 (do NOT call exchangeCode).
   if (!stateCookie || !code || !safeStateEqual(stateCookie, stateParam)) {
     return new Response('bad state', { status: 400 });
   }
@@ -185,6 +92,7 @@ async function handleCallback(req: Request): Promise<Response> {
       siteId: process.env.AARD_SITE_ID!,
       clientSecret: process.env.AARDWIN_CLIENT_SECRET,
     });
+
     // 4. Mint YOUR session, set the session cookie, then redirect.
     const session = await createSession(user.user_id);
     const res = Response.redirect(new URL('/dashboard', url), 303);
@@ -195,14 +103,12 @@ async function handleCallback(req: Request): Promise<Response> {
     return res;
   } catch (e) {
     if (e instanceof AardwinError) {
-      // Re-prompt the user to re-authenticate (the code was consumed or invalid).
       return new Response('auth failed: ' + e.message, { status: 400 });
     }
     throw e;
   }
 }
 
-// --- tiny helpers you'd implement / pull from your framework ---
 function parseCookie(header: string, name: string): string | undefined {
   for (const part of header.split(';')) {
     const [k, ...v] = part.trim().split('=');
@@ -210,125 +116,207 @@ function parseCookie(header: string, name: string): string | undefined {
   }
   return undefined;
 }
-/** Constant-time string compare using Node's built-in crypto.timingSafeEqual.
- *  Avoids the length-leak of a hand-rolled loop. state is a fixed-length hex
- *  nonce (32 chars), so the length guard never leaks useful info in practice. */
+
 function safeStateEqual(a: string, b: string): boolean {
   const ab = Buffer.from(a);
   const bb = Buffer.from(b);
-  if (ab.length !== bb.length) return false; // guard: timingSafeEqual throws on mismatched lengths
+  if (ab.length !== bb.length) return false;
   return timingSafeEqual(ab, bb);
 }
+
 async function createSession(userId: string): Promise<{ token: string; ttl: number }> {
   // ... your session store ...
   return { token: '...', ttl: 86400 };
 }
 ```
 
----
-
-## 7. Retry policy — do NOT retry
-
-`exchangeCode()` is **one-shot**. The api consumes the one-time code atomically
-(`UPDATE ... WHERE consumed_at IS NULL RETURNING`); a retry after any non-2xx / network error
-risks hitting "already consumed" (`code: 40001`). On failure, **re-prompt the user to
-re-authenticate** (which mints a fresh code via the `<aardwin-auth>` redirect flow).
+The backend exchange helper lives in the separate package [`@aardwin/auth-server`](./README.md). The browser package no longer ships a server entry.
 
 ---
+## State verification is your responsibility
 
-## 8. Contract reference
+The browser SDK only sets the cookie. **It does not verify state for you.** Your callback route must:
 
-This package touches two endpoints:
+1. Read the cookie named `aard_win_auth_state`.
+2. Compare it with the `?state=` query parameter using a constant-time comparison.
+3. Consume it exactly once: delete the cookie after a successful exchange.
+4. Return `400` on mismatch — do not proceed to `exchangeCode()`.
 
-| Endpoint                | Who calls           | Body                                                          | Success response (`data`)                                        |
-| ----------------------- | ------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `POST /api/oauth/token`   | your backend → api | `{ site_id, code, client_secret }` (JSON, `client_secret_post`) | `{ user_id, provider, email?, nickname?, avatar? }` (envelope `code: 0`) |
-| `POST /api/account/handoff` | your backend → api | `{ site_id, user_id, client_secret }` (JSON)                  | `{ code, expires_in }` (envelope `code: 0`)           |
+Cookie properties set by `<aardwin-auth>`:
 
-The default origin is `https://api.aard.win` (the aardwin **api**, not the bff). For the full
-flow table (provider list, authorize redirect, callback) and the side-by-side of both SDKs,
-see the browser SDK guide at [./SDK.md](./SDK.md).
+| Property | Value |
+|----------|-------|
+| Name | `aard_win_auth_state` |
+| Path | `/` |
+| SameSite | `Lax` |
+| Max-Age | `1800` seconds (30 minutes) |
+| `Domain` | omitted — host-only cookie |
+
+Because the cookie is host-only, the login page and the callback URL **must be on the same host**.
 
 ---
+## `<aardwin-auth>` props reference
 
-## 9. Account handoff (`<aardwin-account>`)
+Only `site-id` is required.
 
-`createAccountHandoff()` mints a short-lived one-time code you pass to the browser-only
-`<aardwin-account>` Web Component (shipped by `@aardwin/auth-browser`). The component is
-self-contained and renders inline (Shadow DOM) — list bound identities, unbind them, and
-render bind buttons for the remaining providers, the same model as `<aardwin-auth>`; there
-is no hosted manage page and no `manageUrl`. When the user binds a provider the component
-sends the page's own URL as `return_url` and the OAuth callback returns there. The code is
-single-use and expires in 60 s, so mint it on demand when the user opens the account page,
-not at login.
+| Attribute | Required | Type | Description |
+|-----------|----------|------|-------------|
+| `site-id` | yes | `string` | Site ID created in the aardwin console |
+| `i18n` | no | `'zh' \| 'en'` | Explicit language. Omitted/invalid falls back to `navigator.language` detection; defaults to English |
+| `callback-path` | no | `string` | Explicit OAuth/email callback path. Non-empty appends `return_url` to the bff redirect URL; empty/absent falls back to the registered callbackUrl |
 
-On the client instance (preferred — reuses your `siteId` / `clientSecret`):
+For React type completion, opt in with `import '@aardwin/auth-browser/react.d.ts';` (React 18 / React 19 / Next.js 15). For Preact, Solid, or Vue JSX, add your own `JSX.IntrinsicElements` declaration.
+
+CDN / zero build:
+
+```html
+<script src="/aardwin-auth.iife.js"></script>
+<aardwin-auth site-id="YOUR_SITE_ID"></aardwin-auth>
+```
+
+The CDN URL will be published when the first stable IIFE build is released. For local testing, copy `dist/aardwin-auth.iife.js` into your `public/` folder.
+
+---
+## `<aardwin-account>` component
+
+`<aardwin-account>` is a self-contained inline account-management Web Component. It renders inside Shadow DOM on whatever page hosts the tag. There is **no hosted manage page** and **no `manage-url`**.
+
+It needs a one-time handoff code minted server-side via `createAccountHandoff()` from `@aardwin/auth-server`. The code is single-use and expires in 60 seconds, so mint it on demand when the user opens the account page — not at login.
+
+```html
+<aardwin-account site-id="YOUR_SITE_ID" code="ONE_TIME_HANDOFF_CODE"></aardwin-account>
+```
 
 ```ts
 import { createAardwinClient } from '@aardwin/auth-server';
 
 const client = createAardwinClient({
-  siteId: process.env.NEXT_PUBLIC_AARDWIN_SITE_ID,
+  siteId: process.env.AARDWIN_SITE_ID,
   clientSecret: process.env.AARDWIN_CLIENT_SECRET, // server-only
 });
 
-// Server-side, for the logged-in user:
-const { code, expiresIn } = await client.createAccountHandoff({
-  userId: user.user_id, // from the session you minted at exchangeCode()
-});
-// → pass `code` (and your siteId) to the browser and render <aardwin-account site-id code>.
+const { code, expiresIn } = await client.createAccountHandoff({ userId: session.userId });
+// pass `code` to the browser and render <aardwin-account site-id code>
 ```
 
-Then on the page (browser):
+### `<aardwin-account>` props
 
-```html
-<!-- importing @aardwin/auth-browser registers the <aardwin-account> element -->
-<aardwin-account site-id="YOUR_SITE_ID" code="ONE_TIME_CODE"></aardwin-account>
-```
+| Attribute | Required | Description |
+|-----------|----------|-------------|
+| `site-id` | yes | Site ID; decides which providers can be bound |
+| `code` | yes | One-time handoff code from `createAccountHandoff()`. Not consumed if a token is already cached in `sessionStorage` |
+| `i18n` | no | `'zh' \| 'en'`, defaults to `navigator.language` detection |
 
-`client.createAccountHandoff({ userId })` falls back to the client's defaults for every
-other field (`siteId`, `clientSecret`, `timeoutMs`, `signal`, `fetch`); only
-`userId` is required.
+### Lifecycle
 
-Standalone (single call) form:
+1. Resolves an access token: reuses a cached token in `sessionStorage` (`aardwin_account_token`), or, if there is no token and a fresh `code` is present, calls `POST /api/account/session {code}` and stores the returned `access_token`.
+2. If the page URL carries `?pending` and `?provider` (returning from an OAuth provider), calls `POST /api/account/link/:provider/confirm {pending_token}` with the Bearer token, clears the URL params, and re-renders with a success/failure banner.
+3. Otherwise renders the current state: `GET /api/account/identities` (Bearer) → bound identity list with an **Unbind** button each, plus bind buttons for the remaining site providers (excluding `email` and already-bound providers).
+
+Bind and unbind behavior:
+
+- **Bind**: `POST /api/account/link/:provider {return_url: <this page's URL>}` (Bearer) → full-page redirect to the provider's authorize endpoint. The OAuth callback returns to the same page with `?pending=&provider=`, handled by step 2.
+- **Unbind**: `DELETE /api/account/identities/:identityId` (Bearer) after a native `confirm()` prompt.
+- **Token expired (401)**: the cached token is cleared and a "session expired, refresh the page" message is shown. Re-mint the handoff code on the next dashboard load.
+
+### Error events
+
+Missing `code` with no cached token, session creation, fetch, bind, unbind, and token-expiration failures all dispatch `aardwin:account-error` (`bubbles: true, composed: true`). The `detail.phase` field distinguishes the source:
 
 ```ts
-import { createAccountHandoff } from '@aardwin/auth-server';
-
-const { code, expiresIn } = await createAccountHandoff({
-  userId,
-  siteId: process.env.NEXT_PUBLIC_AARDWIN_SITE_ID,
-  clientSecret: process.env.AARDWIN_CLIENT_SECRET,
+el.addEventListener('aardwin:account-error', (e) => {
+  console.log(e.detail.phase, e.detail.message);
 });
 ```
 
-**Notes:**
+---
+## Provider routing table
 
-- This is server-to-server: `client_secret` must never reach the browser. Mint the code in
-  a route handler / server component and hand only `code` to the client.
-- The handoff is one-shot like `exchangeCode()` — on failure, re-mint a fresh code rather
-  than retrying the consumed one.
-- Failures throw `AardwinError`; the same [error matrix](#4-error-handling) shape applies.
+The component does not hardcode provider URLs. It calls `GET /api/providers?site_id=` and receives one `authorizeEndpoint` per provider. The platform routes providers automatically:
+
+| Provider | Regional bff node |
+|----------|-------------------|
+| WeChat | China node (domestic bff) |
+| Google, GitHub, Outlook, Discord | Global node (overseas bff) |
+| email | Email endpoint served by the configured bff origin |
+
+You do not need to handle this routing yourself. The button click redirects to `${authorizeEndpoint}/authorize?site_id=&provider=&state=&lang=` (or the email-specific entry point for `email`). The code exchange always goes to `POST /api/oauth/token` on the API origin.
 
 ---
+## Contract reference
 
-## 10. Roadmap (non-binding)
-
-The following methods are **under consideration**; the public API for the existing methods
-(`createAardwinClient`, `client.exchangeCode`, standalone `exchangeCode`, `AardwinError`) will
-**not** change when any of them ships. The client spine (`createAardwinClient` returning an
-object whose methods delegate to one shared internal `postJson`) absorbs each as a new member or
-top-level export:
-
-- `client.getUser(userId)` — near-term; would require a new public api route.
-- `verifyWebhookSignature(payload, sig, secret)` — pure function, no HTTP; new top-level export.
-- `verifyToken(token, opts?)` — speculative; aardwin does not issue dev-facing JWTs today.
-
-`AardwinError` stays a single flat `Error` subclass; any future method that needs a distinct
-error type will subclass `AardwinError` so `instanceof AardwinError` keeps holding.
+| Endpoint | Who calls | Purpose |
+|----------|-----------|---------|
+| `GET /api/providers?site_id=` | browser SDK → API | Provider list + per-provider `authorizeEndpoint`; validates Origin |
+| `GET {authorizeEndpoint}/authorize?site_id=&provider=&state=` | browser → regional bff | Renders scan; 302→callbackUrl `?code=&state=` |
+| `POST /api/oauth/token` | your backend → API | `{ site_id, code, client_secret }` → user identity |
+| `POST /api/account/session` | browser SDK → API | `{ code }` → `{ access_token }` |
+| `GET /api/account/identities` | browser SDK → API | Bearer token → bound identities |
+| `POST /api/account/link/:provider` | browser SDK → API | Bearer + `{ return_url }` → redirect to bind provider |
+| `POST /api/account/link/:provider/confirm` | browser SDK → API | Bearer + `{ pending_token }` → confirm binding |
+| `DELETE /api/account/identities/:identityId` | browser SDK → API | Bearer → unbind identity |
 
 ---
+## Troubleshooting
 
-## License
+### Buttons do not render
 
-MIT
+Open the browser DevTools Network panel and check `GET /api/providers?site_id=...`:
+
+- Confirm the response status is **200**.
+- Confirm the response body has a non-empty `data.providers` array. An empty array means the site has no providers configured in the console.
+
+### Iframe or embedded webview blocks the redirect
+
+`<aardwin-auth>` performs a full-page redirect via `window.location.href`. If the login page is loaded inside an iframe or in-app webview that restricts top-level navigation, the OAuth provider may refuse the flow or the redirect may fail. Host the login page at a top-level browsing context.
+
+### State mismatch
+
+- Check that the `aard_win_auth_state` cookie is set (`Path=/`, `SameSite=Lax`, `Max-Age=1800`).
+- Confirm the `?state=` query parameter matches the cookie value exactly.
+- Confirm the login page and callback URL are on the **same host**. The cookie is host-only (no `Domain` attribute), so cross-host callbacks cannot read it.
+
+### Code already consumed (`40001`)
+
+`exchangeCode()` throws `AardwinError` with `code: 40001` when the code is invalid, expired, already consumed, or mismatched. The code is atomic one-shot: do **not** retry. Re-prompt the user to log in again, which generates a fresh code through the `<aardwin-auth>` redirect flow.
+
+### Listen for lifecycle events
+
+On `<aardwin-auth>`:
+
+```ts
+const el = document.querySelector('aardwin-auth');
+el.addEventListener('aardwin:error', (e) => console.log(e.detail));
+// { phase: 'render' | 'start', message: string, provider?: string }
+el.addEventListener('aardwin:ready', () => console.log('rendered'));
+```
+
+On `<aardwin-account>`:
+
+```ts
+const el = document.querySelector('aardwin-account');
+el.addEventListener('aardwin:account-error', (e) => console.log(e.detail.phase, e.detail.message));
+```
+
+---
+## Styling
+
+`<aardwin-auth>` exposes `part="button"`:
+
+```css
+aardwin-auth::part(button) {
+  border-radius: 999px;
+  background: #07c160;
+  color: #fff;
+}
+```
+
+`<aardwin-account>` bind buttons also expose `part="button"`.
+
+---
+## Links
+
+- [browser-sdk README](../browser-sdk/README.md)
+- [LOCALDEV.md](../browser-sdk/LOCALDEV.md)
+- [RELEASING.md](../RELEASING.md)
+- [https://aard.win](https://aard.win) — developer portal
