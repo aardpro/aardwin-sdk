@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0 - 2026-08-18
+
+### Changed
+- Docs: 完整集成指南从 `browser-sdk/SDK.md` 移至 `server-sdk/README.md`
+- Docs: 删除 `api-origin` / `apiOrigin` 相关描述
+- Docs: 所有仓库内链接改为相对路径
+
 ## 0.3.0 - 2026-07-29
 
 ### Added

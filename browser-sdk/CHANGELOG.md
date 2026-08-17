@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0 - 2026-08-18
+
+### Changed
+- Docs: 删除 `api-origin` 相关描述；图片改为 png 格式；demo 视频使用线上链接
+- Docs: 预览图片统一使用表格布局
+
 ## 0.1.0 - 2026-07-08
 
 ### BREAKING
