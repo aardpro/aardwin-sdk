@@ -1,242 +1,325 @@
-# @aardwin/auth-browser — third-party integration
+# aardwin browser SDK — full integration guide
 
-Drop-in OAuth login (GitHub, Google, WeChat, ...) via standard OAuth2
-**authorization-code flow**. No iframe, no postMessage. The third-party writes:
+**English** | [中文](https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/SDK.zh-CN.md)
 
-1. **Login page**: one `<aardwin-auth site-id="…">` tag.
-2. **Backend callback route**: verify `state`, call `exchangeCode()`, mint your session.
+The [browser-sdk README](https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/README.md) is the short onboarding. This file is the complete integration guide: how the OAuth2 authorization-code flow works, what `<aardwin-auth>` and `<aardwin-account>` do, and exactly what your backend callback route must implement.
 
+---
+## How the flow works
 
+```text
+  ┌─────────────────┐
+  │  Your login page │  <aardwin-auth site-id="…">
+  │  (same host as   │  fetches GET /api/providers?site_id=…
+  │   callbackUrl)   │  renders one button per provider
+  └────────┬────────┘
+           │ click
+           │ sets aard_win_auth_state cookie (SameSite=Lax)
+           ▼
+  ┌─────────────────┐      ┌──────────────┐      ┌──────────────┐
+  │ aardwin bff      │ ──▶ │   provider   │ ──▶ │   provider   │
+  │ /authorize       │ scan │  (WeChat/etc)│ auth │  returns code│
+  └────────┬────────┘      └──────────────┘      └──────────────┘
+           │ 302 redirect to your registered callbackUrl
+           │ ?code=<one-time>&state=<nonce>
+           ▼
+  ┌─────────────────┐
+  │ Your callback    │  1. read aard_win_auth_state cookie
+  │ route            │  2. timingSafeEqual(state cookie, state param)
+  │                  │  3. POST /api/oauth/token {site_id,code,client_secret}
+  │                  │  4. mint your own session, redirect to app
+  └─────────────────┘
+```
+
+There is **no iframe** and **no postMessage**. The provider scan happens via a full-page redirect, and the one-time code is handed back to your backend callback route. Your route verifies the `state` nonce and exchanges the code with `@aardwin/auth-server`.
+
+---
 ## Quickstart
 
-### npm 安装
+### 1. Register your site on https://aard.win
+
+You receive / configure:
+
+- `siteId` — public, goes in the `<aardwin-auth>` tag.
+- `clientSecret` — server-only, used in `exchangeCode()`.
+- The **provider list** (wechat / google / github / outlook / discord / email).
+- Your **callbackUrl** — the route that receives `?code=&state=`.
+
+The provider list and callbackUrl are stored on the site record; the tag fetches providers dynamically.
+
+### 2. Install
 
 ```bash
 npm install @aardwin/auth-browser
 ```
 
 ```ts
-import '@aardwin/auth-browser'; // side-effect: registers <aardwin-auth>
+import '@aardwin/auth-browser'; // registers <aardwin-auth> and <aardwin-account>
 ```
 
-### 最小用法
+### 3. Place the tag on your login page
 
 ```html
-<aardwin-auth site-id="your-site-id"></aardwin-auth>
+<aardwin-auth site-id="YOUR_SITE_ID"></aardwin-auth>
 ```
 
-### 属性参数
+### 4. Implement the callback route
 
-| 属性 | 必填 | 类型 | 说明 |
-|------|------|------|------|
-| `site-id` | 是 | `string` | 在控制台创建的站点 ID |
-| `i18n` | 否 | `'zh' \| 'en'` | 显式指定语言；留空则按 `navigator.language` 自动检测，默认英文 |
-| `api-origin` | 否 | `string` | 覆盖 API 入口地址，本地开发时指向 `http://localhost:4000` |
+The route is framework-agnostic; the snippet below uses the Web Fetch API. Adapt it to Astro, Next.js, Hono, Express, etc.
 
-`callback-path`（可选）显式指定回调路径（如 `/callback`），非空时 SDK 会在 bff 跳转 URL 中追加 `return_url`；缺省/空串时不发 `return_url`，bff 回退站点注册 callbackUrl。
+```ts
+import { exchangeCode, AardwinError } from '@aardwin/auth-server';
+import { timingSafeEqual } from 'node:crypto';
 
-## 0. Register your app (on the aardwin developer portal)
+async function handleCallback(req: Request): Promise<Response> {
+  const url = new URL(req.url);
+  const stateParam = url.searchParams.get('state');
+  const code = url.searchParams.get('code');
 
-You receive / configure:
+  // 1. Read the state cookie that <aardwin-auth> set before the redirect.
+  const cookieHeader = req.headers.get('cookie') ?? '';
+  const stateCookie = parseCookie(cookieHeader, 'aard_win_auth_state');
 
-- `siteId` (public — goes in the tag)
-- `clientSecret` (server-only — used in `exchangeCode`)
-- pick the **provider list** (wechat / google / github / outlook / discord / email)
-- register your **callbackUrl** (where the code is sent back)
+  // 2. Constant-time compare. Mismatch → 400 (do NOT call exchangeCode).
+  if (!stateCookie || !code || !safeStateEqual(stateCookie, stateParam)) {
+    return new Response('bad state', { status: 400 });
+  }
 
-The provider list + callbackUrl live on the site record; the tag fetches the provider list
-dynamically, so you never hardcode providers. aardwin derives the allowed host from your
-callbackUrl for anti-abuse Origin checks.
+  // 3. Exchange the one-time code. ONE-SHOT — do not retry on failure.
+  try {
+    const user = await exchangeCode({
+      code,
+      siteId: process.env.AARD_SITE_ID!,
+      clientSecret: process.env.AARDWIN_CLIENT_SECRET,
+    });
 
-## 1. Login page (one tag)
+    // 4. Mint YOUR session, set the session cookie, then redirect.
+    const session = await createSession(user.user_id);
+    const res = Response.redirect(new URL('/dashboard', url), 303);
+    res.headers.append('set-cookie',
+      `sid=${session.token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${session.ttl}`);
+    res.headers.append('set-cookie',
+      'aard_win_auth_state=; Max-Age=0; Path=/'); // delete the consumed state cookie
+    return res;
+  } catch (e) {
+    if (e instanceof AardwinError) {
+      return new Response('auth failed: ' + e.message, { status: 400 });
+    }
+    throw e;
+  }
+}
 
-### CDN / `<script>` (zero build)
+function parseCookie(header: string, name: string): string | undefined {
+  for (const part of header.split(';')) {
+    const [k, ...v] = part.trim().split('=');
+    if (k === name) return decodeURIComponent(v.join('='));
+  }
+  return undefined;
+}
+
+function safeStateEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) return false;
+  return timingSafeEqual(ab, bb);
+}
+
+async function createSession(userId: string): Promise<{ token: string; ttl: number }> {
+  // ... your session store ...
+  return { token: '...', ttl: 86400 };
+}
+```
+
+The backend exchange helper lives in the separate package [`@aardwin/auth-server`](https://github.com/aardpro/aardwin-sdk/blob/main/server-sdk/README.md). The browser package no longer ships a server entry.
+
+---
+## State verification is your responsibility
+
+The browser SDK only sets the cookie. **It does not verify state for you.** Your callback route must:
+
+1. Read the cookie named `aard_win_auth_state`.
+2. Compare it with the `?state=` query parameter using a constant-time comparison.
+3. Consume it exactly once: delete the cookie after a successful exchange.
+4. Return `400` on mismatch — do not proceed to `exchangeCode()`.
+
+Cookie properties set by `<aardwin-auth>`:
+
+| Property | Value |
+|----------|-------|
+| Name | `aard_win_auth_state` |
+| Path | `/` |
+| SameSite | `Lax` |
+| Max-Age | `1800` seconds (30 minutes) |
+| `Domain` | omitted — host-only cookie |
+
+Because the cookie is host-only, the login page and the callback URL **must be on the same host**.
+
+---
+## `<aardwin-auth>` props reference
+
+Only `site-id` is required.
+
+| Attribute | Required | Type | Description |
+|-----------|----------|------|-------------|
+| `site-id` | yes | `string` | Site ID created in the aardwin console |
+| `i18n` | no | `'zh' \| 'en'` | Explicit language. Omitted/invalid falls back to `navigator.language` detection; defaults to English |
+| `api-origin` | no | `string` | Override the API entry origin. Use `http://localhost:4000` for local dev |
+| `callback-path` | no | `string` | Explicit OAuth/email callback path. Non-empty appends `return_url` to the bff redirect URL; empty/absent falls back to the registered callbackUrl |
+
+`api-origin` only affects `GET /api/providers` and the `/authorize` fallback base when a provider's `authorizeEndpoint` is empty. It does **not** rewrite each provider's `authorizeEndpoint`; those come from the API response (`bff_origin` configured by platform admins per provider).
+
+For React type completion, opt in with `import '@aardwin/auth-browser/react.d.ts';` (React 18 / React 19 / Next.js 15). For Preact, Solid, or Vue JSX, add your own `JSX.IntrinsicElements` declaration.
+
+CDN / zero build:
 
 ```html
-<!-- CDN URL 待定；本地测试可把 dist/aardwin-auth.iife.js 产物复制到 public/ 目测 -->
 <script src="/aardwin-auth.iife.js"></script>
 <aardwin-auth site-id="YOUR_SITE_ID"></aardwin-auth>
 ```
 
-> The backend origin defaults to the hardcoded `API_ORIGIN` (`https://api.aard.win`) in
-> config. The tag takes `site-id` (required), an optional `api-origin` attribute to override
-> the api entry origin (see below), and an `i18n` attribute (`'zh' | 'en'`; defaults to English, auto-detects Chinese via `navigator.language`).
+The CDN URL will be published when the first stable IIFE build is released. For local testing, copy `dist/aardwin-auth.iife.js` into your `public/` folder.
 
-#### `api-origin` (optional)
+---
+## `<aardwin-account>` component
 
-Override the SDK's default api entry (`API_ORIGIN`) per-instance. Only affects:
+`<aardwin-account>` is a self-contained inline account-management Web Component. It renders inside Shadow DOM on whatever page hosts the tag. There is **no hosted manage page** and **no `manage-url`**.
 
-- the `/api/providers` fetch origin, and
-- the `/authorize` fallback base (used only when a provider's `authorizeEndpoint` is empty).
-
-It does **not** rewrite each provider's `authorizeEndpoint` — that stays sourced from the api
-(each provider's `bff_origin` configured by platform admins on `platform_provider_status`).
-For local dev, have a super_admin set the provider's BFF 网址 to a reachable bff entry via the admin console.
+It needs a one-time handoff code minted server-side via `createAccountHandoff()` from `@aardwin/auth-server`. The code is single-use and expires in 60 seconds, so mint it on demand when the user opens the account page — not at login.
 
 ```html
-<!-- dev: pull providers from local api -->
-<aardwin-auth site-id="YOUR_SITE_ID" api-origin="http://localhost:4000"></aardwin-auth>
-```
-
-Empty string / absent attribute falls back to `API_ORIGIN`.
-
-> `@aardwin/auth-server`（后端换码）有对等的 `origin` 参数。两个 sdk 的 origin 覆盖参数对照见 [technical-architecture.md §3.4](../../docs/technical-architecture.md)。
-
-### npm
-
-```bash
-bun add @aardwin/auth-browser
-```
-
-```ts
-import '@aardwin/auth-browser'; // side-effect: registers <aardwin-auth>
-```
-
-The element fetches `GET {API_ORIGIN}/api/providers?site_id=…` (`API_ORIGIN` is the
-aardwin **api** entry) and renders one button per provider you registered. Each response item
-carries an `authorizeEndpoint` (the bff origin for that provider, admin-configured on `platform_provider_status.bff_origin`). Clicking a button:
-
-1. generates a `state` nonce, stores it in the `aard_win_auth_state` cookie (SameSite=Lax),
-2. full-page redirects to `{authorizeEndpoint}/authorize?site_id=…&provider=…&state=…`
-   (no `redirect_uri` — the backend looks up your registered callbackUrl by site-id).
-
-
-### TypeScript / React
-
-`<aardwin-auth>` 是标准 Web Component，原生可在任何框架使用。React 项目里 `<aardwin-auth site-id="…">` 默认会报类型错误（未知 intrinsic element）。本包提供 opt-in 的 React JSX 类型声明：
-
-```ts
-import '@aardwin/auth-browser/react.d.ts';
-```
-
-import 后 `<aardwin-auth>` 的属性（`site-id` 必填、`i18n?`、`api-origin?`）有自动补全，兼容 React 18 与 React 19 / Next.js 15。
-
-**非 React 框架**（Preact / Solid / Vue JSX）：本声明不适用，请在你的项目里自行加 3 行：
-
-```ts
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'aardwin-auth': { 'site-id': string; i18n?: 'zh' | 'en'; 'api-origin'?: string; 'callback-path'?: string };
-    }
-  }
-}
-```
-## 2. Backend callback route (one call)
-
-After the scan the backend redirects the browser to your registered `callbackUrl` with
-`?code=<one-time>&state=<nonce>`. Verify `state` against the cookie, then exchange the code for
-the end-user identity.
-
-**The code-exchange helper lives in a separate package: [`@aardwin/auth-server`](../server-sdk/README.md).**
-It is framework-agnostic (Node / Bun / any edge runtime), ships `createAardwinClient()` +
-standalone `exchangeCode()`, and documents the full error matrix, timeout/abort behavior, retry
-policy, and a copy-paste state-verification reference snippet. This browser package no longer
-ships a server entry.
-
-```ts
-import { exchangeCode } from '@aardwin/auth-server';
-
-const user = await exchangeCode({
-  code,
-  siteId: 'YOUR_SITE_ID',
-  clientSecret: process.env.AARDWIN_CLIENT_SECRET!, // server-only; never in the browser
-});
-// user = { user_id, provider, nickname?, avatar? }
-```
-
-## Contract reference
-
-| Endpoint                                                      | Who calls                             | Purpose                                                                                                                       |
-| ------------------------------------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/providers?site_id=`                                 | browser (SDK) → **api**               | provider list + per-provider `authorizeEndpoint` (validates Origin ∈ {host of callbackUrl}, emits CORS)                       |
-| `GET {authorizeEndpoint}/authorize?site_id=&provider=&state=` | browser (redirect) → **regional bff** | renders the provider scan; on completion 302→registered callbackUrl `?code&state=` (validates Origin ∈ {host of callbackUrl}) |
-| `POST /api/oauth/token`                                       | your backend → **api**                | `{ site_id, code, client_secret }` → `{ user_id, provider, nickname?, avatar? }`                                              |
-
-## Security model
-
-- **Frontend is zero-secret**: only `siteId`. Anti-abuse is **server-side** by `site_id` +
-  the host derived from your registered **callbackUrl** (Origin/Referer host must match) +
-  per-site rate limiting.
-- **Backend exchange** uses the registered `client_secret` (standard OAuth2
-  `client_secret_post`); the `code` is one-time (60s, atomic consume).
-- **Trust anchor**: the one-time code + client_secret. Verify `state` (cookie) to prevent
-  login CSRF. Keep `client_secret` in env; rotate/revocable via the portal.
-
-
-## Account management (`<aardwin-account>`)
-
-`<aardwin-account>` is a **self-contained inline Web Component** (it mirrors `<aardwin-auth>`:
-Shadow DOM, same provider fetch / sort / icon / HTML-escaping machinery). There is **no
-hosted manage page and no `manage-url`** — identity management renders inline on whatever
-page hosts the tag.
-
-The required `code` is a one-time handoff code minted **server-side** via
-`createAccountHandoff()` (see `server-sdk/README.md` §9). Mint it on demand when the user
-opens the account page — it is single-use and expires in 60 s.
-
-On mount the component:
-
-1. Resolves an access token: reuses a cached token in `sessionStorage`, else (no token + a
-   fresh `code`) calls `POST /api/account/session {code}` and stores the returned
-   `access_token`.
-2. If the page URL carries `?pending` + `?provider` (returning from an OAuth provider),
-   calls `POST /api/account/link/:provider/confirm {pending_token}` (Bearer), clears the
-   URL params, and re-renders with a success/failure banner.
-3. Otherwise renders the current state: `GET /api/account/identities` (Bearer) → bound
-   identity list (each with an **解绑 / Unbind** button), plus bind buttons for the
-   remaining site providers (excluding `email` and already-bound providers).
-
-- **Bind**: `POST /api/account/link/:provider {return_url: <this page's URL>}` (Bearer) →
-  full-page redirect to the provider's authorize endpoint. The OAuth callback returns to
-  **this same page** with `?pending=&provider=`, handled by step 2 — so the user lands back
-  where they started, no separate "返回应用" page needed.
-- **Unbind**: `DELETE /api/account/identities/:identityId` (Bearer), after a native
-  `confirm()` prompt.
-- **Token expired (401)**: the cached token is cleared and a "session expired, refresh the
-  page" message is shown (re-mint the handoff on the next dashboard load).
-
-### Usage
-
-```html
-<!-- importing @aardwin/auth-browser registers the <aardwin-account> element -->
 <aardwin-account site-id="YOUR_SITE_ID" code="ONE_TIME_HANDOFF_CODE"></aardwin-account>
 ```
 
-| 属性 | 必填 | 说明 |
-|------|------|------|
-| `site-id` | 是 | 站点 ID；决定可绑 provider（拉 `GET /api/providers?site_id=`）。缺省时不报错，只是不渲染绑定按钮 |
-| `code` | 是 | `createAccountHandoff()` 返回的一次性 handoff code；用于建会话。sessionStorage 已有 token 时不消费 |
-| `i18n` | 否 | `'zh' \| 'en'`，默认按 `navigator.language` 检测 |
-| `api-origin` | 否 | 覆盖 API 入口，默认 `API_ORIGIN`（本地开发指向 `http://localhost:4000`） |
-
-### 错误事件
-
-无缓存 token 且缺少 `code` 时，元素渲染错误文案并派发 `aardwin:account-error` 事件
-（`bubbles: true, composed: true`，可穿透 Shadow DOM 到宿主页）。建会话 / 拉取 / 绑定 /
-解绑失败、以及 token 过期（401）时也会派发同一事件，`detail.phase` 区分来源：
-
 ```ts
-el.addEventListener('aardwin:account-error', (e) => console.log(e.detail.phase, e.detail.message));
+import { createAardwinClient } from '@aardwin/auth-server';
+
+const client = createAardwinClient({
+  siteId: process.env.AARDWIN_SITE_ID,
+  clientSecret: process.env.AARDWIN_CLIENT_SECRET, // server-only
+});
+
+const { code, expiresIn } = await client.createAccountHandoff({ userId: session.userId });
+// pass `code` to the browser and render <aardwin-account site-id code>
 ```
 
-## Troubleshooting / 调试
+### `<aardwin-account>` props
 
-### 按钮不渲染
+| Attribute | Required | Description |
+|-----------|----------|-------------|
+| `site-id` | yes | Site ID; decides which providers can be bound |
+| `code` | yes | One-time handoff code from `createAccountHandoff()`. Not consumed if a token is already cached in `sessionStorage` |
+| `i18n` | no | `'zh' \| 'en'`, defaults to `navigator.language` detection |
+| `api-origin` | no | Override the API entry origin, defaults to `API_ORIGIN` (`https://api.aard.win`) |
 
-打开浏览器 DevTools 的 Network 面板，查看 `GET {apiOrigin}/api/providers?site_id=...` 请求：
-- 确认响应状态为 **200**；
-- 确认响应体中 `data.providers` 数组非空（为空表示该 site 未配置任何 provider）。
+### Lifecycle
 
-### state 校验失败
+1. Resolves an access token: reuses a cached token in `sessionStorage` (`aardwin_account_token`), or, if there is no token and a fresh `code` is present, calls `POST /api/account/session {code}` and stores the returned `access_token`.
+2. If the page URL carries `?pending` and `?provider` (returning from an OAuth provider), calls `POST /api/account/link/:provider/confirm {pending_token}` with the Bearer token, clears the URL params, and re-renders with a success/failure banner.
+3. Otherwise renders the current state: `GET /api/account/identities` (Bearer) → bound identity list with an **Unbind** button each, plus bind buttons for the remaining site providers (excluding `email` and already-bound providers).
 
-- 检查 `aard_win_auth_state` cookie 是否已设置（`Path=/`, `SameSite=Lax`, `Max-Age=1800`）。
-- 回调 URL 中的 `?state=` 参数必须与 cookie 值完全一致。
-- 如果 cookie 缺失，确认回调地址与登录页**同 host**（cookie 为 host-only，无 `Domain` 属性）。
+Bind and unbind behavior:
 
-### 监听错误事件
+- **Bind**: `POST /api/account/link/:provider {return_url: <this page's URL>}` (Bearer) → full-page redirect to the provider's authorize endpoint. The OAuth callback returns to the same page with `?pending=&provider=`, handled by step 2.
+- **Unbind**: `DELETE /api/account/identities/:identityId` (Bearer) after a native `confirm()` prompt.
+- **Token expired (401)**: the cached token is cleared and a "session expired, refresh the page" message is shown. Re-mint the handoff code on the next dashboard load.
 
-在 `<aardwin-auth>` 元素上监听 `aardwin:error` 与 `aardwin:ready`：
+### Error events
+
+Missing `code` with no cached token, session creation, fetch, bind, unbind, and token-expiration failures all dispatch `aardwin:account-error` (`bubbles: true, composed: true`). The `detail.phase` field distinguishes the source:
+
+```ts
+el.addEventListener('aardwin:account-error', (e) => {
+  console.log(e.detail.phase, e.detail.message);
+});
+```
+
+---
+## Provider routing table
+
+The component does not hardcode provider URLs. It calls `GET /api/providers?site_id=` and receives one `authorizeEndpoint` per provider. The platform routes providers automatically:
+
+| Provider | Regional bff node |
+|----------|-------------------|
+| WeChat | China node (domestic bff) |
+| Google, GitHub, Outlook, Discord | Global node (overseas bff) |
+| email | Email endpoint served by the configured bff origin |
+
+You do not need to handle this routing yourself. The button click redirects to `${authorizeEndpoint}/authorize?site_id=&provider=&state=&lang=` (or the email-specific entry point for `email`). The code exchange always goes to `POST /api/oauth/token` on the API origin.
+
+---
+## Local dev & origin overrides
+
+For local development, point the browser SDK at a local API and point your backend `exchangeCode()` at the same API.
+
+Browser SDK (`<aardwin-auth>` and `<aardwin-account>`):
+
+```html
+<aardwin-auth site-id="YOUR_SITE_ID" api-origin="http://localhost:4000"></aardwin-auth>
+```
+
+Backend server SDK (`@aardwin/auth-server`):
+
+```ts
+const client = createAardwinClient({
+  siteId: 'YOUR_SITE_ID',
+  clientSecret: process.env.AARDWIN_CLIENT_SECRET,
+  apiOrigin: 'http://localhost:4000',
+});
+```
+
+### Origin-override parameter对照
+
+| Layer | Parameter / attribute | Default | What it overrides |
+|-------|----------------------|---------|-----------------|
+| Browser SDK | `<aardwin-auth api-origin="…">` | `https://api.aard.win` | `GET /api/providers`; `/authorize` fallback when `authorizeEndpoint` is empty |
+| Browser SDK | `<aardwin-account api-origin="…">` | `https://api.aard.win` | Account APIs (`/api/account/session`, `/api/account/identities`, `/api/account/link/*`) |
+| Server SDK | `createAardwinClient({ apiOrigin })` | `https://api.aard.win` | `POST /api/oauth/token` and `POST /api/account/handoff` |
+| Server SDK | `exchangeCode({ apiOrigin })` | `https://api.aard.win` | `POST /api/oauth/token` |
+| Server SDK | `createAccountHandoff({ apiOrigin })` | `https://api.aard.win` | `POST /api/account/handoff` |
+
+For the full local dev walkthrough, see [LOCALDEV.md](https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/LOCALDEV.md).
+
+---
+## Contract reference
+
+| Endpoint | Who calls | Purpose |
+|----------|-----------|---------|
+| `GET /api/providers?site_id=` | browser SDK → API | Provider list + per-provider `authorizeEndpoint`; validates Origin |
+| `GET {authorizeEndpoint}/authorize?site_id=&provider=&state=` | browser → regional bff | Renders scan; 302→callbackUrl `?code=&state=` |
+| `POST /api/oauth/token` | your backend → API | `{ site_id, code, client_secret }` → user identity |
+| `POST /api/account/session` | browser SDK → API | `{ code }` → `{ access_token }` |
+| `GET /api/account/identities` | browser SDK → API | Bearer token → bound identities |
+| `POST /api/account/link/:provider` | browser SDK → API | Bearer + `{ return_url }` → redirect to bind provider |
+| `POST /api/account/link/:provider/confirm` | browser SDK → API | Bearer + `{ pending_token }` → confirm binding |
+| `DELETE /api/account/identities/:identityId` | browser SDK → API | Bearer → unbind identity |
+
+---
+## Troubleshooting
+
+### Buttons do not render
+
+Open the browser DevTools Network panel and check `GET {apiOrigin}/api/providers?site_id=...`:
+
+- Confirm the response status is **200**.
+- Confirm the response body has a non-empty `data.providers` array. An empty array means the site has no providers configured in the console.
+
+### Iframe or embedded webview blocks the redirect
+
+`<aardwin-auth>` performs a full-page redirect via `window.location.href`. If the login page is loaded inside an iframe or in-app webview that restricts top-level navigation, the OAuth provider may refuse the flow or the redirect may fail. Host the login page at a top-level browsing context.
+
+### State mismatch
+
+- Check that the `aard_win_auth_state` cookie is set (`Path=/`, `SameSite=Lax`, `Max-Age=1800`).
+- Confirm the `?state=` query parameter matches the cookie value exactly.
+- Confirm the login page and callback URL are on the **same host**. The cookie is host-only (no `Domain` attribute), so cross-host callbacks cannot read it.
+
+### Code already consumed (`40001`)
+
+`exchangeCode()` throws `AardwinError` with `code: 40001` when the code is invalid, expired, already consumed, or mismatched. The code is atomic one-shot: do **not** retry. Re-prompt the user to log in again, which generates a fresh code through the `<aardwin-auth>` redirect flow.
+
+### Listen for lifecycle events
+
+On `<aardwin-auth>`:
 
 ```ts
 const el = document.querySelector('aardwin-auth');
@@ -245,11 +328,17 @@ el.addEventListener('aardwin:error', (e) => console.log(e.detail));
 el.addEventListener('aardwin:ready', () => console.log('rendered'));
 ```
 
-### 本地开发
+On `<aardwin-account>`:
 
-详细流程见 [LOCALDEV.md](LOCALDEV.md)。
+```ts
+const el = document.querySelector('aardwin-account');
+el.addEventListener('aardwin:account-error', (e) => console.log(e.detail.phase, e.detail.message));
+```
 
+---
 ## Styling
+
+`<aardwin-auth>` exposes `part="button"`:
 
 ```css
 aardwin-auth::part(button) {
@@ -258,3 +347,14 @@ aardwin-auth::part(button) {
   color: #fff;
 }
 ```
+
+`<aardwin-account>` bind buttons also expose `part="button"`.
+
+---
+## Links
+
+- [browser-sdk README](https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/README.md)
+- [server-sdk README](https://github.com/aardpro/aardwin-sdk/blob/main/server-sdk/README.md)
+- [LOCALDEV.md](https://github.com/aardpro/aardwin-sdk/blob/main/browser-sdk/LOCALDEV.md)
+- [RELEASING.md](https://github.com/aardpro/aardwin-sdk/blob/main/RELEASING.md)
+- [https://aard.win](https://aard.win) — developer portal
