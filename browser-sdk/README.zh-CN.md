@@ -58,8 +58,16 @@ React 项目：`import '@aardwin/auth-browser/react.d.ts'` 获得 JSX 类型声�
 
 ## 效果预览
 
-![Next.js 应用中的 aardwin 登录卡片](../preview/nextjs-snapshot.png)
-![Vue 应用中的 aardwin 登录卡片](../preview/vuejs-snapshot.png)
+<table>
+  <tr>
+    <th>Next.js 应用</th>
+    <th>Vue 应用</th>
+  </tr>
+  <tr>
+    <td><img src="../preview/nextjs-snapshot.png" alt="Next.js 应用中的 aardwin 登录卡片" width="360"></td>
+    <td><img src="../preview/vuejs-snapshot.png" alt="Vue 应用中的 aardwin 登录卡片" width="360"></td>
+  </tr>
+</table>
 
 ▶ 演示视频：[https://aard.win/sdk-demo.mp4](https://aard.win/sdk-demo.mp4)
 

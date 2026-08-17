@@ -58,8 +58,16 @@ React projects: `import '@aardwin/auth-browser/react.d.ts'` for JSX typings (Rea
 
 ## What it looks like
 
-![aardwin login card in a Next.js app](../preview/nextjs-snapshot.png)
-![aardwin login card in a Vue app](../preview/vuejs-snapshot.png)
+<table>
+  <tr>
+    <th>Next.js app</th>
+    <th>Vue app</th>
+  </tr>
+  <tr>
+    <td><img src="../preview/nextjs-snapshot.png" alt="aardwin login card in a Next.js app" width="360"></td>
+    <td><img src="../preview/vuejs-snapshot.png" alt="aardwin login card in a Vue app" width="360"></td>
+  </tr>
+</table>
 
 ▶ Demo video: [https://aard.win/sdk-demo.mp4](https://aard.win/sdk-demo.mp4)
 
