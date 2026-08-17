@@ -2,7 +2,7 @@
 
 [English](./SDK.md) | **中文**
 
-[browser-sdk README](./README.md) 是简短入门，本文档是完整接入指南：OAuth2 authorization-code 流程如何工作、`<aardwin-auth>` 与 `<aardwin-account>` 的行为，以及你的后端回调路由必须实现哪些步骤。
+[browser-sdk README](../browser-sdk/README.md) 是简短入门，本文档是完整接入指南：OAuth2 authorization-code 流程如何工作、`<aardwin-auth>` 与 `<aardwin-account>` 的行为，以及你的后端回调路由必须实现哪些步骤。
 
 ---
 ## 流程时序
@@ -130,7 +130,7 @@ async function createSession(userId: string): Promise<{ token: string; ttl: numb
 }
 ```
 
-后端换码 helper 在另一个包 [`@aardwin/auth-server`](../server-sdk/README.md) 中。browser 包不再提供服务端入口。
+后端换码 helper 在另一个包 [`@aardwin/auth-server`](./README.md) 中。browser 包不再提供服务端入口。
 
 ---
 ## state 校验是你的责任
@@ -316,8 +316,8 @@ aardwin-auth::part(button) {
 ---
 ## 相关链接
 
-- [browser-sdk README](./README.md)
-- [server-sdk README](../server-sdk/README.md)
-- [LOCALDEV.md](./LOCALDEV.md)
+- [browser-sdk README](../browser-sdk/README.md)
+- [server-sdk README](./README.md)
+- [LOCALDEV.md](../browser-sdk/LOCALDEV.md)
 - [RELEASING.md](../RELEASING.md)
 - [https://aard.win](https://aard.win) —— 开发者控制台

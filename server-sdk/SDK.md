@@ -2,7 +2,7 @@
 
 **English** | [中文](./SDK.zh-CN.md)
 
-The [browser-sdk README](./README.md) is the short onboarding. This file is the complete integration guide: how the OAuth2 authorization-code flow works, what `<aardwin-auth>` and `<aardwin-account>` do, and exactly what your backend callback route must implement.
+The [browser-sdk README](../browser-sdk/README.md) is the short onboarding. This file is the complete integration guide: how the OAuth2 authorization-code flow works, what `<aardwin-auth>` and `<aardwin-account>` do, and exactly what your backend callback route must implement.
 
 ---
 ## How the flow works
@@ -130,7 +130,7 @@ async function createSession(userId: string): Promise<{ token: string; ttl: numb
 }
 ```
 
-The backend exchange helper lives in the separate package [`@aardwin/auth-server`](../server-sdk/README.md). The browser package no longer ships a server entry.
+The backend exchange helper lives in the separate package [`@aardwin/auth-server`](./README.md). The browser package no longer ships a server entry.
 
 ---
 ## State verification is your responsibility
@@ -316,8 +316,8 @@ aardwin-auth::part(button) {
 ---
 ## Links
 
-- [browser-sdk README](./README.md)
-- [server-sdk README](../server-sdk/README.md)
-- [LOCALDEV.md](./LOCALDEV.md)
+- [browser-sdk README](../browser-sdk/README.md)
+- [server-sdk README](./README.md)
+- [LOCALDEV.md](../browser-sdk/LOCALDEV.md)
 - [RELEASING.md](../RELEASING.md)
 - [https://aard.win](https://aard.win) — developer portal

@@ -25,11 +25,11 @@ One OAuth login for WeChat, Google, Outlook, GitHub, Discord and email OTP. Drop
 
 ## Quickstart
 
-Minimal path — the full guide is in [browser-sdk/SDK.md](browser-sdk/SDK.md).
+Minimal path — the full guide is in [server-sdk/SDK.md](server-sdk/SDK.md).
 
 1. Register a site in the [aard.win console](https://aard.win) → get `site-id` + `client-secret`.
 2. Frontend: `npm i @aardwin/auth-browser`, put `<aardwin-auth site-id="..."></aardwin-auth>` on your login page — the user picks a provider, aard.win redirects back with a one-time `code`.
-3. Callback route: verify `state`, then call `exchangeCode()` from `@aardwin/auth-server` → user identity → mint your own session. Full checklist: [browser-sdk/SDK.md](browser-sdk/SDK.md).
+3. Callback route: verify `state`, then call `exchangeCode()` from `@aardwin/auth-server` → user identity → mint your own session. Full checklist: [server-sdk/SDK.md](server-sdk/SDK.md).
 
 ## Packages
 
@@ -46,7 +46,7 @@ Minimal path — the full guide is in [browser-sdk/SDK.md](browser-sdk/SDK.md).
 ## Links
 
 - Console & docs entry: [https://aard.win](https://aard.win)
-- Browser SDK: [browser-sdk/README.md](./browser-sdk/README.md) · [browser-sdk/SDK.md](./browser-sdk/SDK.md)
+- Browser SDK: [browser-sdk/README.md](./browser-sdk/README.md) · [server-sdk/SDK.md](./server-sdk/SDK.md)
 - Server SDK: [server-sdk/README.md](./server-sdk/README.md)
 - License: [MIT](./browser-sdk/LICENSE)
 - 中文文档: [README.zh-CN.md](./README.zh-CN.md)

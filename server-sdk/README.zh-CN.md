@@ -221,7 +221,7 @@ async function createSession(userId: string): Promise<{ token: string; ttl: numb
 | `POST /api/account/handoff` | 你的后端 → api | `{ site_id, user_id, client_secret }`（JSON）                  | `{ code, expires_in }`（envelope `code: 0`）           |
 
 默认 origin 是 `https://api.aard.win`（aardwin 的 **api**，不是 bff）。完整的流程表（provider 列表、authorize 重定向、callback）以及两个 SDK 的对照，见浏览器 SDK 指南：
-[../browser-sdk/SDK.md](../browser-sdk/SDK.md)。
+[./SDK.md](./SDK.md)。
 
 ---
 

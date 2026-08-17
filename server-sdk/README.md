@@ -247,7 +247,7 @@ This package touches two endpoints:
 
 The default origin is `https://api.aard.win` (the aardwin **api**, not the bff). For the full
 flow table (provider list, authorize redirect, callback) and the side-by-side of both SDKs,
-see the browser SDK guide at [../browser-sdk/SDK.md](../browser-sdk/SDK.md).
+see the browser SDK guide at [./SDK.md](./SDK.md).
 
 ---
 

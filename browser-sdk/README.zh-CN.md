@@ -73,7 +73,7 @@ React 项目：`import '@aardwin/auth-browser/react.d.ts'` 获得 JSX 类型声�
 
 ## 深入阅读
 
-- 完整集成指南（回调路由、接口契约、排障）：[SDK.md](./SDK.md)
+- 完整集成指南（回调路由、接口契约、排障）：[SDK.md](../server-sdk/SDK.md)
 - 服务端换码：[`@aardwin/auth-server`](../server-sdk/README.md)
 - 仓库与示例：[aardpro/aardwin-sdk](..)
 

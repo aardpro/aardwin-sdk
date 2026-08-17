@@ -73,7 +73,7 @@ React projects: `import '@aardwin/auth-browser/react.d.ts'` for JSX typings (Rea
 
 ## Going deeper
 
-- Full integration guide (callback route, contract reference, troubleshooting): [SDK.md](./SDK.md)
+- Full integration guide (callback route, contract reference, troubleshooting): [SDK.md](../server-sdk/SDK.md)
 - Server-side code exchange: [`@aardwin/auth-server`](../server-sdk/README.md)
 - Repo & examples: [aardpro/aardwin-sdk](..)
 
