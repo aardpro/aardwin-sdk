@@ -1,4 +1,4 @@
-# aardwin browser SDK — full integration guide
+# @aardwin/auth-server — Full Integration Guide
 
 **English** | [中文](./README.zh-CN.md)
 
@@ -47,6 +47,18 @@ You receive / configure:
 
 The provider list and callbackUrl are stored on the site record; the tag fetches providers dynamically.
 
+#### Registering the callbackUrl
+
+In the [aard.win console](https://aard.win), set the callbackUrl for your site:
+
+- Must be a **full URL** including scheme and path, e.g. `https://myapp.com/callback` or `http://localhost:3000/callback`.
+- The login page and the callback URL **must be on the same host** (the `aard_win_auth_state` cookie is host-only).
+- **Local development:** `localhost` and `127.0.0.1` with any port are allowed.
+- **Production:** the callback URL host must exactly match the registered value.
+- You can register multiple callbackUrls if your app serves different domains.
+
+If you see `400 return_url not allowed`, the callback host does not match what is registered in the console.
+
 ### 2. Install
 
 ```bash
@@ -89,7 +101,7 @@ async function handleCallback(req: Request): Promise<Response> {
   try {
     const user = await exchangeCode({
       code,
-      siteId: process.env.AARD_SITE_ID!,
+      siteId: process.env.AARDWIN_SITE_ID!,
       clientSecret: process.env.AARDWIN_CLIENT_SECRET,
     });
 
@@ -131,6 +143,18 @@ async function createSession(userId: string): Promise<{ token: string; ttl: numb
 ```
 
 The backend exchange helper lives in the separate package [`@aardwin/auth-server`](./README.md). The browser package no longer ships a server entry.
+
+### `exchangeCode()` return value — `AuthUser`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `user_id` | `string` | Stable, provider-agnostic user id (same user across providers) |
+| `provider` | `string` | The provider used for this login (e.g. `github`, `wechat`, `google`) |
+| `email` | `string \| null` | User email when available |
+| `nickname` | `string` | Display name when available |
+| `avatar` | `string` | Avatar URL when available |
+
+Use `user_id` as the primary key for your user record. `provider` tells you which OAuth channel the user came through.
 
 ---
 ## State verification is your responsibility
@@ -279,6 +303,19 @@ Open the browser DevTools Network panel and check `GET /api/providers?site_id=..
 ### Code already consumed (`40001`)
 
 `exchangeCode()` throws `AardwinError` with `code: 40001` when the code is invalid, expired, already consumed, or mismatched. The code is atomic one-shot: do **not** retry. Re-prompt the user to log in again, which generates a fresh code through the `<aardwin-auth>` redirect flow.
+
+### Error code matrix
+
+All errors are thrown as `AardwinError`. Read `e.code` to branch:
+
+| `e.code` | Meaning | Fix |
+|----------|---------|-----|
+| `40001` | Code invalid / expired / already consumed / site-mismatched | Re-prompt login; do NOT retry |
+| `40002` | Wrong `client_secret` for this site | Check your env config; secret must match the site in the console |
+| `40003` | OAuth channel not enabled for the site | Enable the provider in the aard.win console |
+| `undefined` | Network error / timeout / non-JSON response | Check `e.reason` (`"timeout"` or `"aborted"`); verify API origin and connectivity |
+
+`AardwinError` also exposes `status` (HTTP status code, `undefined` for network errors) and `reason` (`"timeout"` | `"aborted"`).
 
 ### Listen for lifecycle events
 

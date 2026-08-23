@@ -1,4 +1,4 @@
-# aardwin browser SDK — 完整接入指南
+# @aardwin/auth-server — 完整接入指南
 
 [English](./README.md) | **中文**
 
@@ -47,6 +47,18 @@
 
 provider 列表与 callbackUrl 存在站点记录中；标签会动态拉取 provider 列表。
 
+#### 注册 callbackUrl
+
+在 [aard.win 控制台](https://aard.win) 为站点设置 callbackUrl：
+
+- 必须是**完整 URL**，含协议和路径，如 `https://myapp.com/callback` 或 `http://localhost:3000/callback`。
+- 登录页与回调 URL **必须在同一 host**（`aard_win_auth_state` cookie 是 host-only）。
+- **本地开发：** 允许 `localhost` 和 `127.0.0.1` 任意端口。
+- **生产环境：** 回调 URL 的 host 必须与注册值完全一致。
+- 如果应用服务多个域名，可注册多个 callbackUrl。
+
+如果看到 `400 return_url not allowed`，说明回调 host 与控制台注册的不一致。
+
 ### 2. 安装
 
 ```bash
@@ -89,7 +101,7 @@ async function handleCallback(req: Request): Promise<Response> {
   try {
     const user = await exchangeCode({
       code,
-      siteId: process.env.AARD_SITE_ID!,
+      siteId: process.env.AARDWIN_SITE_ID!,
       clientSecret: process.env.AARDWIN_CLIENT_SECRET,
     });
 
@@ -131,6 +143,18 @@ async function createSession(userId: string): Promise<{ token: string; ttl: numb
 ```
 
 后端换码 helper 在另一个包 [`@aardwin/auth-server`](./README.md) 中。browser 包不再提供服务端入口。
+
+### `exchangeCode()` 返回值 —— `AuthUser`
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `user_id` | `string` | 稳定的、与 provider 无关的用户 ID（同一用户跨 provider 相同） |
+| `provider` | `string` | 本次登录使用的 provider（如 `github`、`wechat`、`google`） |
+| `email` | `string \| null` | 用户邮箱（可用时） |
+| `nickname` | `string` | 显示名称（可用时） |
+| `avatar` | `string` | 头像 URL（可用时） |
+
+用 `user_id` 作为你用户记录的主键。`provider` 告诉你用户从哪个 OAuth 渠道登录。
 
 ---
 ## state 校验是你的责任
@@ -279,6 +303,19 @@ el.addEventListener('aardwin:account-error', (e) => {
 ### code 已消费（`40001`）
 
 `exchangeCode()` 在一次性码无效、过期、已消费或不匹配时抛出 `code: 40001` 的 `AardwinError`。该码是一次性原子消费，**不要重试**。提示用户重新登录，`<aardwin-auth>` 的重定向流程会生成一个新 code。
+
+### 错误码矩阵
+
+所有错误均以 `AardwinError` 抛出。读 `e.code` 分支处理：
+
+| `e.code` | 含义 | 处理方式 |
+|----------|------|----------|
+| `40001` | code 无效 / 过期 / 已消费 / 站点不匹配 | 提示用户重新登录；不要重试 |
+| `40002` | `client_secret` 错误 | 检查环境变量；secret 必须与控制台站点配置一致 |
+| `40003` | OAuth 渠道未启用 | 在 aard.win 控制台启用对应 provider |
+| `undefined` | 网络错误 / 超时 / 非 JSON 响应 | 检查 `e.reason`（`"timeout"` 或 `"aborted"`）；确认 API origin 和网络连通性 |
+
+`AardwinError` 还提供 `status`（HTTP 状态码，网络错误时为 `undefined`）和 `reason`（`"timeout"` | `"aborted"`）。
 
 ### 监听生命周期事件
 

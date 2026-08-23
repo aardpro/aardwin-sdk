@@ -69,7 +69,7 @@ React 项目：`import '@aardwin/auth-browser/react.d.ts'` 获得 JSX 类型声�
   </tr>
 </table>
 
-▶ 演示视频：[https://aard.win/sdk-demo.mp4](https://aard.win/sdk-demo.mp4)
+▶ 演示视频：[https://aard.win/demo](https://aard.win/demo)
 
 ## 深入阅读
 

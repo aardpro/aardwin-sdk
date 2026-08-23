@@ -69,7 +69,7 @@ React projects: `import '@aardwin/auth-browser/react.d.ts'` for JSX typings (Rea
   </tr>
 </table>
 
-▶ Demo video: [https://aard.win/sdk-demo.mp4](https://aard.win/sdk-demo.mp4)
+▶ Demo video: [https://aard.win/demo](https://aard.win/demo)
 
 ## Going deeper
 
