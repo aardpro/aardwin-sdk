@@ -60,13 +60,17 @@ interface Feedback {
   text: string;
 }
 
-/** 鉴权 fetch 的非 2xx 错误，带 HTTP status（用于 401 判定）。 */
+/** 鉴权 fetch 的非 2xx 错误，带 HTTP status + api 信封 code/message（用于 401 判定与失败细分回显）。 */
 class AccountHttpError extends Error {
   status: number;
-  constructor(status: number) {
-    super(`account http ${status}`);
+  code?: number;
+  envelopeMessage?: string;
+  constructor(status: number, code?: number, envelopeMessage?: string) {
+    super(envelopeMessage ?? `account http ${status}`);
     this.name = "AccountHttpError";
     this.status = status;
+    this.code = code;
+    this.envelopeMessage = envelopeMessage;
   }
 }
 
@@ -190,15 +194,34 @@ export class AardwinAccountElement extends HTMLElement {
     await this.render();
   }
 
-  /** 错误事件：dispatch 到 host（this），composed:true 穿 Shadow DOM 到父页面。 */
-  private emitError(message: string, phase: string): void {
+  /** 错误事件：dispatch 到 host（this），composed:true 穿 Shadow DOM 到父页面。
+   *  extra 追加 status/code 等字段——宿主页据此回显真实失败原因，而非笼统重试提示。 */
+  private emitError(
+    message: string,
+    phase: string,
+    extra?: { status?: number; code?: number },
+  ): void {
     this.dispatchEvent(
       new CustomEvent("aardwin:account-error", {
         bubbles: true,
         composed: true,
-        detail: { phase, message },
+        detail: { phase, message, ...extra },
       }),
     );
+  }
+
+  /** confirm 失败 → 细分反馈：按 HTTP status 映射具体原因文案（宿主页 banner 与事件同文案）。 */
+  private linkFailureFeedback(
+    e: unknown,
+    texts: ReturnType<typeof resolveSdkTexts>,
+  ): Feedback & { status?: number; code?: number } {
+    if (e instanceof AccountHttpError) {
+      if (e.status === 409) return { ok: false, text: texts.linkConflict, status: e.status, code: e.code };
+      if (e.status === 404) return { ok: false, text: texts.linkExpired, status: e.status, code: e.code };
+      if (e.status === 403) return { ok: false, text: texts.linkUnauthorized, status: e.status, code: e.code };
+      return { ok: false, text: texts.linkFailed, status: e.status, code: e.code };
+    }
+    return { ok: false, text: texts.linkFailed };
   }
 
   private async render(): Promise<void> {
@@ -243,8 +266,11 @@ export class AardwinAccountElement extends HTMLElement {
       try {
         await this.confirmLink(apiOrigin, token, cb.provider, cb.pending);
         feedback = { ok: true, text: texts.linkSuccess };
-      } catch {
-        feedback = { ok: false, text: texts.linkFailed };
+      } catch (e) {
+        const f = this.linkFailureFeedback(e, texts);
+        feedback = { ok: false, text: f.text };
+        // 细分原因同步 emit（带 status/code）——宿主页不再只能猜「会话过期」。
+        this.emitError(f.text, "link", { status: f.status, code: f.code });
       }
       if (seq !== this.#renderSeq) return;
       await this.paintAll(apiOrigin, token, siteId, texts, seq, feedback);
@@ -439,7 +465,15 @@ export class AardwinAccountElement extends HTMLElement {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code }),
     });
-    if (!res.ok) throw new AccountHttpError(res.status);
+    if (!res.ok) {
+      // 读一次错误信封（{code, message}），409/404/403 的细分回显靠它；
+      // 非 JSON body（网关 HTML）静默降级为纯 status。
+      const env = (await res.json().catch(() => null)) as {
+        code?: number;
+        message?: string;
+      } | null;
+      throw new AccountHttpError(res.status, env?.code, env?.message);
+    }
     const raw = (await res.json().catch(() => null)) as
       | { data?: { access_token?: string }; access_token?: string }
       | null;
@@ -544,7 +578,15 @@ export class AardwinAccountElement extends HTMLElement {
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
-    if (!res.ok) throw new AccountHttpError(res.status);
+    if (!res.ok) {
+      // 读一次错误信封（{code, message}），409/404/403 的细分回显靠它；
+      // 非 JSON body（网关 HTML）静默降级为纯 status。
+      const env = (await res.json().catch(() => null)) as {
+        code?: number;
+        message?: string;
+      } | null;
+      throw new AccountHttpError(res.status, env?.code, env?.message);
+    }
     if (res.status === 204) return null;
     return await res.json().catch(() => null);
   }

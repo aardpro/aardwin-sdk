@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.1 - 2026-09-26
+
+### Fixed
+- `<aardwin-account>` 绑定 confirm 失败不再吞错：`AccountHttpError` 捕获 api 错误信封
+  （`code`/`message`）；confirm 失败按 HTTP status 细分回显——409 → `linkConflict`
+  （身份已被其他账号占用）、404 → `linkExpired`（60s 一次性窗口过期/已消费）、
+  403 → `linkUnauthorized`（会话与 pending 目标不一致）、其余 → `linkFailed`。
+  banner 与 `aardwin:account-error` 事件使用同一细分文案，事件 `detail` 新增
+  `status`/`code` 字段——宿主页可据此回显真实原因，不再只能提示「重试」。
+- createSession/authedRequest 非 2xx 统一读一次错误信封（非 JSON body 降级纯 status）。
+
+# Changelog
+
 ## 0.5.0 - 2026-09-26
 
 ### Added

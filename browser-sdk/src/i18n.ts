@@ -65,6 +65,12 @@ export interface SdkTexts {
   linkSuccess: string;
   /** <aardwin-account> 绑定回调 confirm 失败反馈 */
   linkFailed: string;
+  /** <aardwin-account> 绑定回调 confirm 失败——身份已被其他账号占用（HTTP 409 identity_conflict） */
+  linkConflict: string;
+  /** <aardwin-account> 绑定回调 confirm 失败——pending 过期/已消费（HTTP 404，60s 一次性窗口） */
+  linkExpired: string;
+  /** <aardwin-account> 绑定回调 confirm 失败——会话与 pending 目标不一致（HTTP 403） */
+  linkUnauthorized: string;
   /** <aardwin-account> 解绑成功反馈 */
   unbindSuccess: string;
   /** <aardwin-account> 解绑失败反馈 */
@@ -101,6 +107,9 @@ const ZH: SdkTexts = {
   confirmUnbind: '确定要解绑 {p} 吗？',
   linkSuccess: '绑定成功',
   linkFailed: '绑定失败，请重试',
+  linkConflict: '该登录身份已绑定到另一个账号，请先在原账号解绑后再试',
+  linkExpired: '绑定会话已过期（60 秒窗口），请回到绑定按钮重新发起',
+  linkUnauthorized: '绑定确认与会话不匹配，请在当前页面重新发起绑定',
   unbindSuccess: '已解绑',
   unbindFailed: '解绑失败，请重试',
 };
@@ -129,6 +138,9 @@ const EN: SdkTexts = {
   confirmUnbind: 'Unbind {p}?',
   linkSuccess: 'Linked successfully',
   linkFailed: 'Failed to link. Please try again.',
+  linkConflict: 'This sign-in identity is already linked to another account. Unbind it there first.',
+  linkExpired: 'The bind window has expired (60s). Start the link again.',
+  linkUnauthorized: 'Link confirmation session mismatch. Start the link again from this page.',
   unbindSuccess: 'Unlinked',
   unbindFailed: 'Failed to unbind. Please try again.',
 };
