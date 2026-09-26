@@ -1,5 +1,5 @@
 /**
- * <aardwin-auth> 的 React JSX 类型声明（opt-in）。
+ * `<aardwin-auth>` / `<aardwin-account>` 的 React JSX 类型声明（opt-in）。
  *
  * 用法：`import '@aardwin/auth-browser/react.d.ts';`
  *
@@ -7,7 +7,7 @@
  *   - global.JSX.IntrinsicElements：React ≤18 使用全局 JSX 命名空间。
  *   - React.JSX.IntrinsicElements：React 19 把 JSX 命名空间移到 React 命名空间下，
  *     通过 `declare module 'react'` 增强。
- * 非 React 框架（Preact/Solid/Vue JSX）消费者请自行写 3 行 IntrinsicElements 声明（见 SDK.md）。
+ * 非 React 框架（Preact/Solid/Vue JSX）消费者请自行写 3 行 IntrinsicElements 声明（见 README）。
  */
 
 export {};
@@ -17,6 +17,8 @@ type AardwinAuthI18n = 'zh' | 'en';
 interface AardwinAuthAttributes {
   /** 站点 ID（必填），决定拉取哪个 provider 按钮。 */
   'site-id': string;
+  /** 第二层过滤：逗号分隔 provider 白名单（精确匹配，缺省/空串不过滤）。 */
+  providers?: string;
   /** 显式指定语言；缺省时组件按 navigator.language 检测。 */
   i18n?: AardwinAuthI18n;
   /** 覆盖默认 api 入口，用于本地开发。 */
@@ -25,10 +27,24 @@ interface AardwinAuthAttributes {
   'callback-path'?: string;
 }
 
+interface AardwinAccountAttributes {
+  /** 站点 ID（必填），决定可绑定的 provider。 */
+  'site-id': string;
+  /** 服务端 createAccountHandoff() 铸造的一次性 handoff code（60 秒、单次使用）。 */
+  code: string;
+  /** 第二层过滤：逗号分隔 provider 白名单（精确匹配，缺省/空串不过滤；仅影响绑定按钮区）。 */
+  providers?: string;
+  /** 显式指定语言；缺省时组件按 navigator.language 检测。 */
+  i18n?: AardwinAuthI18n;
+  /** 覆盖默认 api 入口，用于本地开发。 */
+  'api-origin'?: string;
+}
+
 declare global {
   namespace JSX {
     interface IntrinsicElements {
       'aardwin-auth': AardwinAuthAttributes;
+      'aardwin-account': AardwinAccountAttributes;
     }
   }
 }
@@ -37,6 +53,7 @@ declare module 'react' {
   namespace JSX {
     interface IntrinsicElements {
       'aardwin-auth': AardwinAuthAttributes;
+      'aardwin-account': AardwinAccountAttributes;
     }
   }
 }

@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import '../src/account-element';
+import { parseProvidersFilter } from '../src/provider-shared';
 
 /**
  * <aardwin-account> 重写后的 DOM 集成测试（happy-dom）。
@@ -79,9 +80,9 @@ describe('aardwin-account — registration & attributes', () => {
     expect(customElements.get('aardwin-account')).toBeDefined();
   });
 
-  it('observedAttributes = site-id, code, i18n, api-origin (no manage-url)', () => {
+  it('observedAttributes = site-id, code, providers, i18n, api-origin (no manage-url)', () => {
     const Klass = customElements.get('aardwin-account') as typeof HTMLElement;
-    expect(Klass.observedAttributes).toEqual(['site-id', 'code', 'i18n', 'api-origin']);
+    expect(Klass.observedAttributes).toEqual(['site-id', 'code', 'providers', 'i18n', 'api-origin']);
   });
 });
 
@@ -295,6 +296,176 @@ describe('aardwin-account — rendering (identities + bind buttons)', () => {
     const row = shadow(el).querySelector('.identity')!;
     expect(row.getAttribute('data-identity-id')).toBe('id"><img src=x onerror=alert(1)>');
     expect(row.querySelectorAll('img, script').length).toBe(0);
+  });
+});
+
+describe('aardwin-account — providers attribute (layer-2 filter)', () => {
+  afterEach(resetEnv);
+
+  /** 站点启用 wechat/outlook/discord（第一层）；identities 默认空。 */
+  function layeredFetch(identities: unknown[] = []): void {
+    installFetch((url) => {
+      if (pathOf(url) === '/api/account/session') return jsonRes({ data: { access_token: 'TOK' } });
+      if (pathOf(url) === '/api/account/identities')
+        return jsonRes({ data: { identities } });
+      if (pathOf(url).includes('/api/providers'))
+        return jsonRes({
+          data: {
+            providers: [
+              { id: 'wechat', authorizeEndpoint: 'https://auth.aard.win' },
+              { id: 'outlook', authorizeEndpoint: 'https://auth.aard.win' },
+              { id: 'discord', authorizeEndpoint: 'https://auth.aard.win' },
+            ],
+          },
+        });
+      return jsonRes({}, 404);
+    });
+  }
+
+  function bindIds(el: HTMLElement): string[] {
+    return Array.from(shadow(el).querySelectorAll<HTMLButtonElement>('button.bind-btn')).map((b) =>
+      b.getAttribute('data-bind'),
+    );
+  }
+
+  it('parseProvidersFilter: 缺失/空串 → null（不过滤）；非空按逗号 split、逐字保留（不 trim）', () => {
+    expect(parseProvidersFilter(null)).toBeNull();
+    expect(parseProvidersFilter('')).toBeNull();
+    expect(parseProvidersFilter('google,outlook')).toEqual(['google', 'outlook']);
+    // 精确匹配语义：空格与大小写原样保留，由调用方逐字比对。
+    expect(parseProvidersFilter('Google, outlook')).toEqual(['Google', ' outlook']);
+  });
+
+  it('no providers attribute → all backend-enabled providers rendered in fixed order', async () => {
+    layeredFetch();
+    const el = document.createElement('aardwin-account') as HTMLElement;
+    el.setAttribute('site-id', 'S');
+    el.setAttribute('code', 'C');
+    el.setAttribute('i18n', 'en');
+    document.body.appendChild(el);
+    await waitFor(30);
+
+    // PROVIDER_ORDER：wechat → outlook → discord。
+    expect(bindIds(el)).toEqual(['wechat', 'outlook', 'discord']);
+  });
+
+  it('providers="google,outlook" ∩ backend {wechat,outlook,discord} → only outlook (user example)', async () => {
+    layeredFetch();
+    const el = document.createElement('aardwin-account') as HTMLElement;
+    el.setAttribute('site-id', 'S');
+    el.setAttribute('code', 'C');
+    el.setAttribute('i18n', 'en');
+    el.setAttribute('providers', 'google,outlook');
+    document.body.appendChild(el);
+    await waitFor(30);
+
+    expect(bindIds(el)).toEqual(['outlook']);
+  });
+
+  it('attr value not enabled in backend → dropped (providers="google" → no bind section)', async () => {
+    layeredFetch();
+    const el = document.createElement('aardwin-account') as HTMLElement;
+    el.setAttribute('site-id', 'S');
+    el.setAttribute('code', 'C');
+    el.setAttribute('i18n', 'en');
+    el.setAttribute('providers', 'google');
+    document.body.appendChild(el);
+    await waitFor(30);
+
+    expect(bindIds(el)).toEqual([]);
+    expect(shadow(el).querySelector('.bind-group')).toBeNull();
+  });
+
+  it('strict match: case/space deviations match nothing (providers="Google, outlook" → no bind section)', async () => {
+    layeredFetch();
+    const el = document.createElement('aardwin-account') as HTMLElement;
+    el.setAttribute('site-id', 'S');
+    el.setAttribute('code', 'C');
+    el.setAttribute('i18n', 'en');
+    el.setAttribute('providers', 'Google, outlook');
+    document.body.appendChild(el);
+    await waitFor(30);
+
+    expect(bindIds(el)).toEqual([]);
+    expect(shadow(el).querySelector('.bind-group')).toBeNull();
+  });
+
+  it('unknown provider names in attr are ignored (providers="outlook,unknown" → outlook only)', async () => {
+    layeredFetch();
+    const el = document.createElement('aardwin-account') as HTMLElement;
+    el.setAttribute('site-id', 'S');
+    el.setAttribute('code', 'C');
+    el.setAttribute('i18n', 'en');
+    el.setAttribute('providers', 'outlook,unknown');
+    document.body.appendChild(el);
+    await waitFor(30);
+
+    expect(bindIds(el)).toEqual(['outlook']);
+  });
+
+  it('empty providers attribute → no filter (same as absent)', async () => {
+    layeredFetch();
+    const el = document.createElement('aardwin-account') as HTMLElement;
+    el.setAttribute('site-id', 'S');
+    el.setAttribute('code', 'C');
+    el.setAttribute('i18n', 'en');
+    el.setAttribute('providers', '');
+    document.body.appendChild(el);
+    await waitFor(30);
+
+    expect(bindIds(el)).toEqual(['wechat', 'outlook', 'discord']);
+  });
+
+  it('filter applies to bind buttons only — already-bound identity list untouched', async () => {
+    // github 已绑且不在 providers 白名单：identity 行照常渲染，绑定区只剩过滤后的按钮。
+    installFetch((url) => {
+      if (pathOf(url) === '/api/account/session') return jsonRes({ data: { access_token: 'TOK' } });
+      if (pathOf(url) === '/api/account/identities')
+        return jsonRes({ data: { identities: [{ provider: 'github', identityId: 'id1' }] } });
+      if (pathOf(url).includes('/api/providers'))
+        return jsonRes({
+          data: {
+            providers: [
+              { id: 'github', authorizeEndpoint: 'https://auth.aard.win' },
+              { id: 'google', authorizeEndpoint: 'https://auth.aard.win' },
+              { id: 'outlook', authorizeEndpoint: 'https://auth.aard.win' },
+            ],
+          },
+        });
+      return jsonRes({}, 404);
+    });
+
+    const el = document.createElement('aardwin-account') as HTMLElement;
+    el.setAttribute('site-id', 'S');
+    el.setAttribute('code', 'C');
+    el.setAttribute('i18n', 'en');
+    el.setAttribute('providers', 'google,outlook');
+    document.body.appendChild(el);
+    await waitFor(30);
+
+    // 已绑 github 仍显示（不受 providers 过滤影响）。
+    expect(shadow(el).querySelector('[data-provider="github"]')).toBeTruthy();
+    // 绑定按钮 = 站点 {github,google,outlook} ∩ {google,outlook} − 已绑 {github}。
+    expect(bindIds(el)).toEqual(['google', 'outlook']);
+  });
+
+  it('changing the attribute at runtime re-renders with the new filter', async () => {
+    layeredFetch();
+    const el = document.createElement('aardwin-account') as HTMLElement;
+    el.setAttribute('site-id', 'S');
+    el.setAttribute('code', 'C');
+    el.setAttribute('i18n', 'en');
+    document.body.appendChild(el);
+    await waitFor(30);
+    expect(bindIds(el)).toEqual(['wechat', 'outlook', 'discord']);
+
+    el.setAttribute('providers', 'discord');
+    await waitFor(30);
+    expect(bindIds(el)).toEqual(['discord']);
+
+    el.removeAttribute('providers');
+    await waitFor(30);
+    expect(bindIds(el)).toEqual(['wechat', 'outlook', 'discord']);
   });
 });
 

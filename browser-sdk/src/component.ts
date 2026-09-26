@@ -8,6 +8,7 @@ import {
   PROVIDER_ICONS,
   orderIndexOf,
   fetchSiteProviders,
+  parseProvidersFilter,
 } from "./provider-shared";
 
 /**
@@ -20,6 +21,11 @@ import {
  * 由 admin 在平台 provider 配置里维护，不受此属性影响）。
  * `callback-path`（可选）：显式指定 OAuth / email 回调路径；非空时追加 `return_url`
  * 到 bff 跳转 URL，缺省/空串时不发 `return_url`，bff 回退站点注册 callbackUrl（向后兼容）。
+ * `providers`（可选）：与 `<aardwin-account>` 同语义的第二层过滤。逗号分隔白名单
+ * （**精确匹配** wechat/google/github/outlook/discord/email，不 trim、不改大小写），
+ * 与站点已启用 providers 取交集后渲染登录按钮；缺省/空串 = 不过滤。email 同受白名单
+ * 控制（`providers="google"` 不含 email → email 按钮不渲染；`providers="google,email"` 保留）。
+ * 交集为空 → zeroChannels 错误 + console.warn（便于发现 typo）。`","` / 纯空白值必然落空。
  *
  * Renders one button per provider registered for the site (fetched from
  * `GET ${apiOrigin ?? API_ORIGIN}/api/providers?site_id=…`). Each button records the provider's
@@ -115,7 +121,7 @@ export class AardwinAuthElement extends HTMLElement {
   }
 
   static get observedAttributes(): string[] {
-    return ["site-id", "i18n", "api-origin", "callback-path"];
+    return ["site-id", "providers", "i18n", "api-origin", "callback-path"];
   }
 
   attributeChangedCallback(): void {
@@ -183,7 +189,27 @@ export class AardwinAuthElement extends HTMLElement {
     // issue 6：固定顺序 Wechat → Google → Outlook → Github → Discord → Email。
     // api 未返回的天然不在 visibleProviders 里（跳过）；返回但不在该表的未知 provider
     // 落队尾、保持稳定相对顺序。authorizeEndpoint 空值过滤（M15）已在上游完成。
-    const ordered = [...visibleProviders].sort(
+    // `providers` 属性（第二层过滤）：与站点已启用 providers 取交集（email 同受白名单
+    // 控制，见文件头）。语义与 <aardwin-account> 完全一致——parseProvidersFilter 严格匹配。
+    const wanted = parseProvidersFilter(this.getAttribute("providers"));
+    const filtered =
+      wanted === null
+        ? visibleProviders
+        : visibleProviders.filter((p) => wanted.includes(p.id));
+    if (filtered.length === 0) {
+      // 交集为空几乎总是 providers 属性 typo（大小写/空格）——warn 列出两侧值便于排障
+      // （镜像 M15 空 endpoint 的 warn 先例）；渲染走 zeroChannels（对终端用户文案准确）。
+      console.warn(
+        "[aardwin-sdk] providers attribute filtered out all providers:",
+        "site:", providers.map((p) => p.id),
+        "attr:", wanted,
+      );
+      this.emitError('render', texts.zeroChannels);
+      this.mount(`${WARN_SVG}<div class="error" role="alert">${escapeHtml(texts.zeroChannels)}</div>`);
+      return;
+    }
+
+    const ordered = [...filtered].sort(
       (a, b) => orderIndexOf(a.id) - orderIndexOf(b.id),
     );
 

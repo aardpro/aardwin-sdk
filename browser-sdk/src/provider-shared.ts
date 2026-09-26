@@ -91,3 +91,20 @@ export async function fetchSiteProviders(
     return { ok: false };
   }
 }
+
+/**
+ * 解析 `providers` 属性为第二层过滤白名单（`<aardwin-auth>` / `<aardwin-account>` 共用）。
+ *
+ *   - 缺失 / 空串 → null（不过滤，行为与无此属性一致）；
+ *   - 非空 → 按逗号 split，值与 canonical provider 名**逐字比较**（不 trim、不改大小写）：
+ *     `providers="Google, outlook"` 一个都匹配不上 → 交集为空；
+ *     `providers=","` / 纯空白值同理（split 产物为空串/空格，无 provider id 可匹配）；
+ *   - 不在名词表（wechat/google/github/outlook/discord[/email 仅 auth]）内的值无需校验——
+ *     与站点已启用 providers 取交集时天然丢弃。
+ *
+ * 导出供单测直接覆盖解析语义（DOM 集成由两组件各自的 test 覆盖）。
+ */
+export function parseProvidersFilter(raw: string | null): string[] | null {
+  if (raw === null || raw === "") return null;
+  return raw.split(",");
+}

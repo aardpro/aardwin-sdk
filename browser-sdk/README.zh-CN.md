@@ -37,6 +37,7 @@ import '@aardwin/auth-browser'; // side-effect：注册 <aardwin-auth> 与 <aard
 | 属性 | 必填 | 说明 |
 | --- | --- | --- |
 | `site-id` | 是 | 在 [aard.win 控制台](https://aard.win) 创建的站点 ID，决定拉取哪些 provider 按钮 |
+| `providers` | 否 | 逗号分隔白名单（如 `google,outlook`），与站点已启用 providers 取交集后决定渲染哪些**登录按钮**。值必须与 canonical provider 名（`wechat`、`google`、`github`、`outlook`、`discord`、`email`）**逐字一致**——不容忍空格与大小写差异。email 与其它 provider 同受白名单控制（`providers="google"` 不渲染 email 按钮；`providers="google,email"` 保留）。交集为空 → 渲染"未启用登录方式"错误并 `console.warn` 列出两侧值（便于发现 typo）；缺省/空串 = 不过滤 |
 | `i18n` | 否 | `'zh' \| 'en'`；缺省按 `navigator.language` 自动检测，默认英文 |
 | `callback-path` | 否 | 显式指定回调路径（如 `/callback`）；非空时 SDK 在跳转 URL 中追加 `return_url`，缺省时 bff 回退站点注册的 callbackUrl |
 
@@ -46,9 +47,10 @@ import '@aardwin/auth-browser'; // side-effect：注册 <aardwin-auth> 与 <aard
 | --- | --- | --- |
 | `site-id` | 是 | 站点 ID；决定可绑定的 provider |
 | `code` | 是 | 服务端用 `createAccountHandoff()` 铸造的一次性 handoff code（60 秒、单次使用） |
+| `providers` | 否 | 逗号分隔白名单（如 `google,outlook`），与站点已启用 providers 取交集后决定渲染哪些**绑定按钮**。值必须与 canonical provider 名（`wechat`、`google`、`github`、`outlook`、`discord`）**逐字一致**——不容忍空格与大小写差异。退化值（`","`、纯空白）必然落空 → 绑定区整体不渲染；缺省/空串 = 不过滤；已绑 identity 列表不受影响 |
 | `i18n` | 否 | `'zh' \| 'en'`；缺省自动检测 |
 
-React 项目：`import '@aardwin/auth-browser/react.d.ts'` 获得 JSX 类型声明（兼容 React 18 / 19、Next.js 15）。
+React 项目：`import '@aardwin/auth-browser/react.d.ts'` 获得**两个元素**的 JSX 类型声明（含各自 `providers` 属性；兼容 React 18 / 19、Next.js 15）。
 
 ## 安全模型
 

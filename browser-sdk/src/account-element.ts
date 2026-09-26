@@ -7,6 +7,7 @@ import {
   PROVIDER_ICONS,
   orderIndexOf,
   fetchSiteProviders,
+  parseProvidersFilter,
 } from "./provider-shared";
 
 /**
@@ -21,6 +22,10 @@ import {
  * 属性：
  *   - `site-id`：拉 `GET /api/providers?site_id=` 决定可绑 provider。
  *   - `code`：一次性 handoff code（用于建会话；sessionStorage 已有 token 时不消费）。
+ *   - `providers`：可选第二层过滤。逗号分隔的 provider 白名单（**精确匹配** canonical 名
+ *     wechat/google/github/outlook/discord，不 trim、不改大小写），与站点已启用 providers
+ *     取交集后再渲染绑定按钮；缺省/空串 = 不过滤。仅影响绑定按钮区，已绑 identity 列表不受影响。
+ *     `","` / 纯空白值逐字比对必然落空 → 绑定区整体不渲染（严格契约，见 parseProvidersFilter）。
  *   - `i18n`：'zh' | 'en'，缺省按 navigator.language 检测。
  *   - `api-origin`：覆盖默认 API_ORIGIN。
  *
@@ -174,7 +179,7 @@ export class AardwinAccountElement extends HTMLElement {
   }
 
   static get observedAttributes(): string[] {
-    return ["site-id", "code", "i18n", "api-origin"];
+    return ["site-id", "code", "providers", "i18n", "api-origin"];
   }
 
   attributeChangedCallback(): void {
@@ -289,10 +294,13 @@ export class AardwinAccountElement extends HTMLElement {
       if (pr.ok) providers = pr.providers;
     }
 
-    // 绑定按钮 = 站点 provider − 已绑 − email，按固定顺序排。
+    // 绑定按钮 = 站点 provider − 已绑 − email（固定排序）∩ `providers` 属性（第二层过滤）。
+    // 过滤仅作用于绑定区；已绑 identity 列表照常渲染（账号事实不受展示参数影响）。
     const bound = new Set(identities.map((i) => i.provider));
+    const wanted = parseProvidersFilter(this.getAttribute("providers"));
     const bindable = providers
       .filter((p) => p.id !== "email" && !bound.has(p.id))
+      .filter((p) => wanted === null || wanted.includes(p.id))
       .sort((a, b) => orderIndexOf(a.id) - orderIndexOf(b.id));
 
     this.mountIdentities({ identities, email, bindable, texts, feedback });

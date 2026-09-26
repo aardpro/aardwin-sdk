@@ -386,3 +386,127 @@ describe('issue 2 — lang passthrough on click (email + oauth)', () => {
     expect(btn!.textContent).toBe('使用微信继续');
   });
 });
+
+/**
+ * `providers` 属性（第二层过滤）—— 与 <aardwin-account> 同语义（严格匹配、缺省/空串
+ * 不过滤），差异点：auth 的 email 也是登录按钮，同受白名单控制；交集为空走 zeroChannels
+ * 错误 + console.warn（对终端用户文案准确，对开发者可排障 typo）。
+ * 解析语义（parseProvidersFilter）的纯函数单测在 account-element.test.ts（共享于 provider-shared）。
+ */
+describe('aardwin-auth — providers attribute (layer-2 filter)', () => {
+  afterEach(() => {
+    globalThis.fetch = ORIGINAL_FETCH;
+    document.body.innerHTML = '';
+    clearStateCookie();
+  });
+
+  /** 站点启用 wechat/google/email（第一层，含 email 登录方式）。 */
+  function layeredFetch(): void {
+    globalThis.fetch = mock(() =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: {
+              providers: [
+                { id: 'wechat', authorizeEndpoint: 'https://auth.aard.win' },
+                { id: 'google', authorizeEndpoint: 'https://auth.aard.win' },
+                { id: 'email', authorizeEndpoint: 'https://auth.aard.win' },
+              ],
+            },
+          }),
+      }),
+    ) as unknown as typeof fetch;
+  }
+
+  function buttonIds(el: HTMLElement): string[] {
+    const shadow = (el as unknown as { shadowRoot: ShadowRoot | null }).shadowRoot;
+    return Array.from(
+      shadow?.querySelectorAll<HTMLButtonElement>('button.btn') ?? [],
+    ).map((b) => b.getAttribute('data-provider'));
+  }
+
+  function shadowOf(el: HTMLElement): ShadowRoot | null {
+    return (el as unknown as { shadowRoot: ShadowRoot | null }).shadowRoot;
+  }
+
+  function mountAuth(providers?: string): HTMLElement {
+    const el = document.createElement('aardwin-auth') as HTMLElement;
+    el.setAttribute('site-id', 'S');
+    el.setAttribute('i18n', 'en');
+    if (providers !== undefined) el.setAttribute('providers', providers);
+    document.body.appendChild(el);
+    return el;
+  }
+
+  it('observedAttributes includes providers (attribute change re-renders)', () => {
+    const Klass = customElements.get('aardwin-auth') as typeof HTMLElement;
+    expect(Klass.observedAttributes).toEqual([
+      'site-id',
+      'providers',
+      'i18n',
+      'api-origin',
+      'callback-path',
+    ]);
+  });
+
+  it('no providers attribute → all site-enabled buttons in fixed order (incl. email)', async () => {
+    layeredFetch();
+    const el = mountAuth();
+    await waitFor(50);
+    expect(buttonIds(el)).toEqual(['wechat', 'google', 'email']);
+  });
+
+  it('providers="google,outlook" ∩ {wechat,google,email} → only google; email excluded when not whitelisted', async () => {
+    layeredFetch();
+    const el = mountAuth('google,outlook');
+    await waitFor(50);
+    expect(buttonIds(el)).toEqual(['google']);
+  });
+
+  it('email is whitelisted like any provider (providers="google,email" keeps email)', async () => {
+    layeredFetch();
+    const el = mountAuth('google,email');
+    await waitFor(50);
+    expect(buttonIds(el)).toEqual(['google', 'email']);
+  });
+
+  it('empty intersection → zeroChannels error + console.warn lists both sides (typo debugging)', async () => {
+    layeredFetch();
+    const origWarn = console.warn;
+    const warn = mock(() => {});
+    console.warn = warn as unknown as typeof console.warn;
+    try {
+      // 严格匹配：大小写/空格偏差一个都匹配不上 → 交集为空。
+      const el = mountAuth('Google, outlook');
+      await waitFor(50);
+      expect(buttonIds(el)).toEqual([]);
+      expect(shadowOf(el)?.querySelector('.error')).toBeTruthy();
+      expect(warn).toHaveBeenCalled();
+    } finally {
+      console.warn = origWarn;
+    }
+  });
+
+  it('empty providers attribute → no filter (same as absent)', async () => {
+    layeredFetch();
+    const el = mountAuth('');
+    await waitFor(50);
+    expect(buttonIds(el)).toEqual(['wechat', 'google', 'email']);
+  });
+
+  it('changing the attribute at runtime re-renders with the new filter', async () => {
+    layeredFetch();
+    const el = mountAuth();
+    await waitFor(50);
+    expect(buttonIds(el)).toEqual(['wechat', 'google', 'email']);
+
+    el.setAttribute('providers', 'google');
+    await waitFor(50);
+    expect(buttonIds(el)).toEqual(['google']);
+
+    el.removeAttribute('providers');
+    await waitFor(50);
+    expect(buttonIds(el)).toEqual(['wechat', 'google', 'email']);
+  });
+});

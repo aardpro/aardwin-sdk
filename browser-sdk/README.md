@@ -37,6 +37,7 @@ The element fetches your site's provider list from the aardwin API and renders o
 | Attribute | Required | Description |
 | --- | --- | --- |
 | `site-id` | yes | Site ID created in the [aard.win console](https://aard.win); decides which provider buttons are fetched |
+| `providers` | no | Comma-separated allow-list (e.g. `google,outlook`) intersected with the site's enabled providers to decide which **login buttons** render. Values must match canonical provider names (`wechat`, `google`, `github`, `outlook`, `discord`, `email`) exactly — no extra spaces, case-sensitive. `email` is whitelisted like any provider (`providers="google"` hides the email button; `providers="google,email"` keeps it). Empty intersection → the zero-channels error is rendered (plus a `console.warn` listing both sides). Omitted/empty → no filtering. |
 | `i18n` | no | `'zh' \| 'en'`; omitted → auto-detect via `navigator.language`, English default |
 | `callback-path` | no | Explicit callback path (e.g. `/callback`); when set, the SDK appends `return_url` to the redirect; omitted → the bff falls back to your registered callbackUrl |
 
@@ -46,9 +47,10 @@ The element fetches your site's provider list from the aardwin API and renders o
 | --- | --- | --- |
 | `site-id` | yes | Site ID; determines which providers can be bound |
 | `code` | yes | One-time handoff code minted server-side via `createAccountHandoff()` (60 s, single-use) |
+| `providers` | no | Comma-separated allow-list (e.g. `google,outlook`) intersected with the site's enabled providers to decide which **bind buttons** render. Values must match canonical provider names (`wechat`, `google`, `github`, `outlook`, `discord`) exactly — no extra spaces, case-sensitive. Degenerate values (`","`, whitespace-only) match nothing → the bind section renders nothing. Omitted/empty → no filtering. Already-linked identities are unaffected. |
 | `i18n` | no | `'zh' \| 'en'`; omitted → auto-detect |
 
-React projects: `import '@aardwin/auth-browser/react.d.ts'` for JSX typings (React 18 / 19, Next.js 15).
+React projects: `import '@aardwin/auth-browser/react.d.ts'` for JSX typings of **both** elements, including their `providers` attribute (React 18 / 19, Next.js 15).
 
 ## Security model
 
